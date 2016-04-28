@@ -16,23 +16,23 @@ begin
 	p0: process
 	begin
 	wait until rising_edge(clk);
-	if res = '1' then 
+	if res = '1' then
 		clock_count <= 0;
 		leds_buffer <= "0000";
 		leds_output <= "0000";
 	else
 		clock_count <= clock_count + 1;
-		leds_buffer(integer(clock_count)) <= din;	-- store the switch state to the appropriate position in the buffer
+		leds_buffer(integer(clock_count)) <= din;			-- store the switch state to the appropriate position in the buffer
 		if clock_count = 3 then
-			clock_count <= 0;						-- handle the overflow
-			leds_output <= leds_buffer;				-- update the LED outputs
+			clock_count <= 0;								-- handle the overflow (might not be neccessary)
+			leds_output <= leds_buffer;						-- update the LED outputs
 		end if;
 	end if;
 	end process;
-	
-	led0 <= leds_output(0);
-	led1 <= leds_output(1);
-	led2 <= leds_output(2);
-	led3 <= leds_output(3);
+
+	led0 <= leds_output(0);									-- connect the output flipflops
+	led1 <= leds_output(1);									-- with the wires that are the
+	led2 <= leds_output(2);									-- edge of the module
+	led3 <= leds_output(3);									-- (and would actually drive the LEDs)
 
 end rtl;
