@@ -9,7 +9,7 @@ end simple;
 
 architecture rtl of simple is
 	signal clock_count: natural range 0 to 3;				-- count the clock cycles so we can act on the fourth
-	Signal leds_buffer: std_logic_vector(0 to 3) := "0000";	-- the switch inputs are stored here until the fourth cycle
+	Signal leds_buffer: std_logic_vector(0 to 2) := "000";	-- the switch inputs are stored here until the fourth cycle
 	Signal leds_output: std_logic_vector(0 to 3) := "0000";	-- the flipflops actually driving the LEDs
 begin
 
@@ -18,14 +18,16 @@ begin
 	wait until rising_edge(clk);
 	if res = '1' then
 		clock_count <= 0;
-		leds_buffer <= "0000";
+		leds_buffer <= "000";
 		leds_output <= "0000";
 	else
-		clock_count <= clock_count + 1;
-		leds_buffer(integer(clock_count)) <= din;			-- store the switch state to the appropriate position in the buffer
 		if clock_count = 3 then
 			clock_count <= 0;								-- handle the overflow (might not be neccessary)
-			leds_output <= leds_buffer;						-- update the LED outputs
+			leds_output(0 to 2) <= leds_buffer;						-- update the LED outputs
+			leds_output(3) <= din;
+		else
+			clock_count <= clock_count + 1;
+			leds_buffer(integer(clock_count)) <= din;			-- store the switch state to the appropriate position in the buffer
 		end if;
 	end if;
 	end process;
