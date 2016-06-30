@@ -1,5 +1,5 @@
 --
--- A simple byte-wise barrel sifter
+-- A simple byte-wise barrel sifter for 4-byte words
 --
 
 library ieee;
