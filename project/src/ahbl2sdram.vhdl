@@ -73,14 +73,14 @@ end AHBL2SDRAM;
 
 architecture cache of AHBL2SDRAM is
 
-    signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
-    signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
-    signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
-    signal last_HSEL   : std_logic; -- signal form decoder
-    -- iHWDATA : IN std_logic_vector(31 downto 0); -- incoming data from master
-    -- iHREADY : IN std_logic; -- previous transaction of Master completed
-    -- iHREADYOUT : OUT std_logic; -- signal to halt transaction until slave-data is ready
-    -- iHRDATA : OUT std_logic_vector(31 downto 0); -- outgoing data to master
+	signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
+	signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
+	signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
+	signal last_HSEL   : std_logic;                         -- signal form decoder
+--	signal iHWDATA     : std_logic_vector(31 downto 0);     -- incoming data from master
+--	signal iHREADY     : std_logic;                         -- previous transaction of Master completed
+--	signal iHREADYOUT  : std_logic;                         -- signal to halt transaction until slave-data is ready
+    -- signal iHRDATA : std_logic_vector(31 downto 0); -- outgoing data to master
 
     -- further required wiring
 
