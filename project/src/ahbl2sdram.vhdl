@@ -21,8 +21,8 @@ entity AHBL2SDRAM is
 		HSEL              : in  std_logic;                     -- Slave select
 		HREADY            : in  std_logic;                     -- Master's ready signal: 0: Busy, 1: Ready for next transaction
 -- AHB Slave outputs --------------------------------------------------------------------------------------------------
-		HRDATA            : in  std_logic_vector(31 downto 0); -- Outgoing Data to master
-		HREADYOUT         : in  std_logic;                     -- Slave's ready signal: 0: Busy, 1: Ready
+		HRDATA            : out std_logic_vector(31 downto 0); -- Outgoing Data to master
+		HREADYOUT         : out std_logic;                     -- Slave's ready signal: 0: Busy, 1: Ready
 
 -- Memory Controller Interface
 -- Clock, Reset and Calibration Signals. We probably do not need these ------------------------------------------------
@@ -34,6 +34,9 @@ entity AHBL2SDRAM is
 	--	pll_lock          : out std_logic;                     -- ...
 	--	sysclk_2x         : out std_logic;                     -- ...
 	--	sysclk_2x_180     : out std_logic;                     -- ...
+-- Self-Refresh-Signals -----------------------------------------------------------------------------------------------
+	--	selfrefresh_enter : out std_logic;                     -- Ask RAM to go to self-refresh mode. Hold high until selfrefresh_mode goes high.
+	--	selfrefresh_mode  : in  std_logic;                     -- 0: Normal mode, 1: RAM is in selfrefresh mode.
 -- Command Path. TODO: Replace X by appropriate port number -----------------------------------------------------------
 		pX_cmd_addr       : out std_logic_vector(29 downto 0); -- Byte start address for current transaction.
 		pX_cmd_bl         : out std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 indicates a burst of one word
@@ -62,33 +65,48 @@ entity AHBL2SDRAM is
 		pX_rd_count       : in  std_logic_vector(6 downto 0);  -- Read data FIFO fill level: 0: empty. Note longer latency than pX_rd_full!
 		pX_rd_overflow    : in  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
 		pX_rd_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
--- Self-Refresh-Signals -----------------------------------------------------------------------------------------------
-		selfrefresh_enter : out std_logic;                     -- Ask RAM to go to self-refresh mode. Hold high until selfrefresh_mode goes high.
-		selfrefresh_mode  : in  std_logic);                    -- 0: Normal mode, 1: RAM is in selfrefresh mode.
+-- Quadruple speed internal clock
+		QCLK              : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
 end AHBL2SDRAM;
 
 
 
 architecture cache of AHBL2SDRAM is
 
-    -- -- internal AHB signals ( not sure if we need every signal internally, but at least some if them )
-    last_HADDR : IN std_logic_vector(31 downto 0); -- Slave addr
-    last_HTRANS : IN std_logic_vector(1 downto 0); -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
+    signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
+    signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
+    signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
+    signal last_HSEL   : std_logic; -- signal form decoder
     -- iHWDATA : IN std_logic_vector(31 downto 0); -- incoming data from master
-    last_HWRITE : IN std_logic; -- High: Master write, Low: Master Read
-    last_HSEL : IN std_logic; -- signal form decoder
     -- iHREADY : IN std_logic; -- previous transaction of Master completed
     -- iHREADYOUT : OUT std_logic; -- signal to halt transaction until slave-data is ready
     -- iHRDATA : OUT std_logic_vector(31 downto 0); -- outgoing data to master
 
     -- further required wiring
 
+	component tag_sram
+		port (clk  : in std_logic;
+			  we   : in std_logic;
+			  en   : in std_logic;
+			  addr : in std_logic_vector(10 downto 0);
+			  di   : in std_logic_vector(16 downto 0);
+			  do   : out std_logic_vector(16 downto 0));
+	end component;
+
+	component data_sram is
+		port (clk  : in std_logic;
+			  we   : in std_logic;
+			  en   : in std_logic;
+			  addr : in std_logic_vector(9 downto 0);
+			  di   : in std_logic_vector(31 downto 0);
+			  do   : out std_logic_vector(31 downto 0));
+	end component;
 
 
 	-- TODO: instantiate cache controller components
 
 
-begin:
+begin
 	-- capture AHB address phase signals
 	process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
 	begin
@@ -103,7 +121,7 @@ begin:
 	end process;
 
     -- we are selected for this transfer, link signals to controllers
-    process(HCLK_
+    process(HCLK)
     begin
 		if(rising_edge(HCLK)) then
 			HREADYOUT <= '0'; -- pull down until we have an something to deliver 
@@ -127,21 +145,21 @@ begin:
 	end process;
 
     -- wait for status of cache controller if we read
-    process(chit)
-    begin
-        if chit = '1' then -- cache hit, get data from cache
-            HRDATA <= crdata; 
-            -- some other signaling stuff????
-            HREADYOUT <= '1' -- pull ready up since we are done
-        else -- cache miss
-            -- wait for DRAM to get the data...
-        end if;
-    end process;
+    -- process(chit)
+    -- begin
+    --     if chit = '1' then -- cache hit, get data from cache
+    --         HRDATA <= crdata; 
+    --         -- some other signaling stuff????
+    --         HREADYOUT <= '1' -- pull ready up since we are done
+    --     else -- cache miss
+    --         -- wait for DRAM to get the data...
+    --     end if;
+    -- end process;
 
 end cache;
 
 architecture no_cache of AHBL2SDRAM is
-begin:
+begin
 	-- TODO: Just pass each write and read operation directly to the DDR2-RAM
 end no_cache;
 
