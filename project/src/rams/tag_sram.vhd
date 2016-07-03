@@ -7,16 +7,16 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
-entity tag_sram is
+entity TAG_SRAM is
     port (clk  : in std_logic;
-          we   : in std_logic;
           en   : in std_logic;
+          we   : in std_logic;
           addr : in std_logic_vector(10 downto 0);
           di   : in std_logic_vector(16 downto 0);
           do   : out std_logic_vector(16 downto 0));
-end tag_sram;
+end TAG_SRAM;
 
-architecture syn of tag_sram is
+architecture syn of TAG_SRAM is
     type ram_type is array (1024 downto 0) of std_logic_vector (16 downto 0);
     signal RAM : ram_type;
 begin

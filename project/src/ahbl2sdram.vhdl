@@ -12,17 +12,24 @@ entity AHBL2SDRAM is
 -- AHB-LITE Interface
 -- Global signals ---------------------------------------------------------------------------------------------------------------
 		HCLK              : in  std_logic;                     -- Bus clock
-  		HRESETn           : in  std_logic;                     -- Reset
+		HRESETn           : in  std_logic;                     -- Reset
 -- AHB Slave inputs ---------------------------------------------------------------------------------------------------
-		HADDR             : in  std_logic_vector(31 downto 0); -- Slave address
-		HTRANS            : in  std_logic_vector( 1 downto 0); -- Transaction status: 00: IDLE, 01: BUSY, 10: NON-SEQUENTIAL, 11: SEQUENTIAL
-		HWRITE            : in  std_logic;                     -- Diretion: 0: Master read, 1: Master write
-		HWDATA            : in  std_logic_vector(31 downto 0); -- Incomming Data from master
 		HSEL              : in  std_logic;                     -- Slave select
+
+		HADDR             : in  std_logic_vector(31 downto 0); -- Slave address
+		HWRITE            : in  std_logic;                     -- Diretion: 0: Master read, 1: Master write
+		HSIZE             : in  std_logic_vector( 2 downto 0); -- Transfer Word size: 000: Byte, 001: Halfword, 010: Word, others: undefined
+		-- HBURST         : in  std_logic_vector( 2 downto 0)  -- NOT IMPLEMENTED
+		-- HPROT          : in  std_logic_vector( 3 downto 0)  -- NOT IMPLEMENTED, Could be used to create a seperated cache for instructions and data.
+		HTRANS            : in  std_logic_vector( 1 downto 0); -- Transaction status: 00: IDLE, 01: BUSY, 10: NON-SEQUENTIAL, 11: SEQUENTIAL
+		-- HMASTLOCK      : in  std_logic;                     -- NOT IMPLEMENTED
 		HREADY            : in  std_logic;                     -- Master's ready signal: 0: Busy, 1: Ready for next transaction
+
+		HWDATA            : in  std_logic_vector(31 downto 0); -- Incomming Data from master
 -- AHB Slave outputs --------------------------------------------------------------------------------------------------
-		HRDATA            : out std_logic_vector(31 downto 0); -- Outgoing Data to master
 		HREADYOUT         : out std_logic;                     -- Slave's ready signal: 0: Busy, 1: Ready
+		HRESP             : out std_logic;                     -- Transfer response: 0: Okay, 1: Error. Needs one additional wait state with HREADYout low.
+		HRDATA            : out std_logic_vector(31 downto 0); -- Outgoing Data to master
 
 -- Memory Controller Interface
 -- Clock, Reset and Calibration Signals. We probably do not need these ------------------------------------------------
@@ -80,27 +87,42 @@ architecture cache of AHBL2SDRAM is
 --	signal iHWDATA     : std_logic_vector(31 downto 0);     -- incoming data from master
 --	signal iHREADY     : std_logic;                         -- previous transaction of Master completed
 --	signal iHREADYOUT  : std_logic;                         -- signal to halt transaction until slave-data is ready
-    -- signal iHRDATA : std_logic_vector(31 downto 0); -- outgoing data to master
+--	signal iHRDATA     : std_logic_vector(31 downto 0);     -- outgoing data to master
 
-    -- further required wiring
+
+	--{{{ The Signals for the Cache SRAM:
+	signal tag_en      : std_logic;
+	signal tag_we      : std_logic;
+	signal tag_idx     : std_logic_vector(9 downto 0);
+	signal tag_read    : std_logic_vector(15 downto 0);
+	signal tag_write   : std_logic_vector(15 downto 0);
 
 	component tag_sram
 		port (clk  : in std_logic;
-			  we   : in std_logic;
 			  en   : in std_logic;
-			  addr : in std_logic_vector(10 downto 0);
-			  di   : in std_logic_vector(16 downto 0);
-			  do   : out std_logic_vector(16 downto 0));
+			  we   : in std_logic;
+			  addr : in std_logic_vector(9 downto 0);
+			  di   : in std_logic_vector(15 downto 0);
+			  do   : out std_logic_vector(15 downto 0));
 	end component;
+	--}}}
+
+	--{{{ The Signals for the Data SRAM:
+	signal data_en      : std_logic;
+	signal data_we      : std_logic;
+	signal data_idx     : std_logic_vector(9 downto 0);
+	signal data_read    : std_logic_vector(31 downto 0);
+	signal data_write   : std_logic_vector(31 downto 0);
 
 	component data_sram is
 		port (clk  : in std_logic;
-			  we   : in std_logic;
 			  en   : in std_logic;
+			  we   : in std_logic;
 			  addr : in std_logic_vector(9 downto 0);
 			  di   : in std_logic_vector(31 downto 0);
 			  do   : out std_logic_vector(31 downto 0));
 	end component;
+	--}}}
 
 
 	-- TODO: instantiate cache controller components
