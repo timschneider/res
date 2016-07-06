@@ -32,19 +32,7 @@ entity AHBL2SDRAM is
 		HRDATA            : out std_logic_vector(31 downto 0); -- Outgoing Data to master
 
 -- Memory Controller Interface
--- Clock, Reset and Calibration Signals. We probably do not need these ------------------------------------------------
-	--	asycn_rst         : out std_logic;                     -- Main reset for the memory controller
-	--	calib_done        : in  std_logic;                     -- Operational readiness: 0: Still calibrating, 1: Ready to receive commands
-	--	mcb_drp_clk       : out std_logic;                     -- ...
-	--	pll_ce_0          : out std_logic;                     -- ...
-	--	pll_ce_90         : out std_logic;                     -- ...
-	--	pll_lock          : out std_logic;                     -- ...
-	--	sysclk_2x         : out std_logic;                     -- ...
-	--	sysclk_2x_180     : out std_logic;                     -- ...
--- Self-Refresh-Signals -----------------------------------------------------------------------------------------------
-	--	selfrefresh_enter : out std_logic;                     -- Ask RAM to go to self-refresh mode. Hold high until selfrefresh_mode goes high.
-	--	selfrefresh_mode  : in  std_logic;                     -- 0: Normal mode, 1: RAM is in selfrefresh mode.
--- Command Path. TODO: Replace X by appropriate port number -----------------------------------------------------------
+-- Command Path -------------------------------------------------------------------------------------------------------
 		pX_cmd_addr       : out std_logic_vector(29 downto 0); -- Byte start address for current transaction.
 		pX_cmd_bl         : out std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 indicates a burst of one word
 		pX_cmd_clk        : out std_logic;                     -- User clock for the command FIFO
@@ -79,6 +67,29 @@ end AHBL2SDRAM;
 
 
 architecture cache of AHBL2SDRAM is
+
+	-- Constants
+	-- Address Format:
+	-- 00000000|XXXXXXXXXXXX|XXXXXXX|XXX|XX
+	-- 00000000|TAG         |INDEX  |WS |BS
+	-- 8       |12          |7      |3  |2
+	constant BS_L  : integer :=  0;
+	constant BS_H  : integer :=  1;
+	constant WS_L  : integer :=  2;
+	constant WS_H  : integer :=  4;
+	constant IDX_L : integer :=  5;
+	constant IDX_H : integer := 11;
+	constant TAG_L : integer := 12;
+	constant TAG_H : integer := 23;
+	constant NUL_L : integer := 24;
+	constant NUL_H : integer := 31;
+
+
+
+
+
+
+
 
 	signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
 	signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
