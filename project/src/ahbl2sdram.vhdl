@@ -9,7 +9,8 @@ use ieee.std_logic_1164.all;
 
 entity AHBL2SDRAM is
 	port (
--- AHB-LITE Interface
+-- AHB-LITE Interface {{{
+
 -- Global signals ---------------------------------------------------------------------------------------------------------------
 		HCLK              : in  std_logic;                     -- Bus clock
 		HRESETn           : in  std_logic;                     -- Reset
@@ -29,9 +30,10 @@ entity AHBL2SDRAM is
 -- AHB Slave outputs --------------------------------------------------------------------------------------------------
 		HREADYOUT         : out std_logic;                     -- Slave's ready signal: 0: Busy, 1: Ready
 		HRESP             : out std_logic;                     -- Transfer response: 0: Okay, 1: Error. Needs one additional wait state with HREADYout low.
-		HRDATA            : out std_logic_vector(31 downto 0); -- Outgoing Data to master
+		HRDATA            : out std_logic_vector(31 downto 0); -- Outgoing Data to master }}}
 
--- Memory Controller Interface
+-- Memory Controller Interface {{{
+
 -- Command Path -------------------------------------------------------------------------------------------------------
 		pX_cmd_addr       : out std_logic_vector(29 downto 0); -- Byte start address for current transaction.
 		pX_cmd_bl         : out std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 indicates a burst of one word
@@ -59,7 +61,8 @@ entity AHBL2SDRAM is
 		pX_rd_empty       : in  std_logic;                     -- Read data FIFO empty bit: 0: Not empty, 1: Empty. Cannot read data from FIFO.
 		pX_rd_count       : in  std_logic_vector(6 downto 0);  -- Read data FIFO fill level: 0: empty. Note longer latency than pX_rd_full!
 		pX_rd_overflow    : in  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
-		pX_rd_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
+		pX_rd_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve. }}}
+
 -- Quadruple speed internal clock
 		QCLK              : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
 end AHBL2SDRAM;
@@ -68,40 +71,36 @@ end AHBL2SDRAM;
 
 architecture cache of AHBL2SDRAM is
 
-	-- Constants
-	-- Address Format:
-	-- 00000000|XXXXXXXXXXXX|XXXXXXX|XXX|XX
-	-- 00000000|TAG         |INDEX  |WS |BS
-	-- 8       |12          |7      |3  |2
-	constant BS_L  : integer :=  0;
-	constant BS_H  : integer :=  1;
-	constant WS_L  : integer :=  2;
-	constant WS_H  : integer :=  4;
-	constant IDX_L : integer :=  5;
-	constant IDX_H : integer := 11;
-	constant TAG_L : integer := 12;
-	constant TAG_H : integer := 23;
-	constant NUL_L : integer := 24;
-	constant NUL_H : integer := 31;
+	--{{{ Address Format:
+
+	-- 31       23           1l      4   1  |
+	-- |00000000|XXXXXXXXXXXX|XXXXXXX|XXX|XX|
+	-- |00000000|TAG         |INDEX  |WS |BS|
+	-- |8       |12          |7      |3  |2 |
+
+	alias NULLED      is HADDR(31 downto 24);
+	alias TAG         is HADDR(23 downto 12);
+	alias INDEX       is HADDR(11 downto  5);
+	alias WORD_SELECT is HADDR( 4 downto  2);
+	alias BYTE_SELECT is HADDR( 1 downto  0);
+	--}}}
 
 
 
+	--{{{ foobar
 
-
-
-
-
-	signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
-	signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
-	signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
-	signal last_HSEL   : std_logic;                         -- signal form decoder
+--	signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
+--	signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
+--	signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
+--	signal last_HSEL   : std_logic;                         -- signal form decoder
 --	signal iHWDATA     : std_logic_vector(31 downto 0);     -- incoming data from master
 --	signal iHREADY     : std_logic;                         -- previous transaction of Master completed
 --	signal iHREADYOUT  : std_logic;                         -- signal to halt transaction until slave-data is ready
 --	signal iHRDATA     : std_logic_vector(31 downto 0);     -- outgoing data to master
+	--}}}
 
 
-	--{{{ The Signals for the Cache SRAM:
+	--{{{ The Signals for the Tag SRAM:
 	signal tag_en      : std_logic;
 	signal tag_we      : std_logic;
 	signal tag_idx     : std_logic_vector(9 downto 0);
@@ -136,58 +135,61 @@ architecture cache of AHBL2SDRAM is
 	--}}}
 
 
-	-- TODO: instantiate cache controller components
 
 
 begin
-	-- capture AHB address phase signals
-	process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
-	begin
-		if(rising_edge(HCLK)) then
-			if HREADY = '1' then  -- check if previous transaction is actually finished
-				last_HADDR  <= HADDR;
-				last_HTRANS <= HTRANS;
-				last_HWRITE <= HWRITE;
-				last_HSEL   <= HSEL;
-			end if;
-		end if;
-	end process;
 
-    -- we are selected for this transfer, link signals to controllers
-    process(HCLK)
-    begin
-		if(rising_edge(HCLK)) then
-			HREADYOUT <= '0'; -- pull down until we have an something to deliver 
-			if last_HWRITE = '1'  then -- write
-            	-- write control signals
-            	-- write data to Memory Controller
-            	-- write addr to Memeory Controller
-            	-- write data to Cache Contorller
-            	-- write addr to Cache Conroller
+	--{{{ Commented
 
-            	-- do we have to wait for ready signal from someone??? I don't think so...
-
-			else -- read
-            	-- write control signals
-            	-- write data to Memory Controller
-            	-- write addr to Memeory Controller
-            	-- write data to Cache Contorller
-            	-- write addr to Cache Conroller
-			end if;
-		end if;
-	end process;
-
-    -- wait for status of cache controller if we read
-    -- process(chit)
-    -- begin
-    --     if chit = '1' then -- cache hit, get data from cache
-    --         HRDATA <= crdata; 
-    --         -- some other signaling stuff????
-    --         HREADYOUT <= '1' -- pull ready up since we are done
-    --     else -- cache miss
-    --         -- wait for DRAM to get the data...
-    --     end if;
-    -- end process;
+--	-- capture AHB address phase signals
+--	process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
+--	begin
+--		if(rising_edge(HCLK)) then
+--			if HREADY = '1' then  -- check if previous transaction is actually finished
+--				last_HADDR  <= HADDR;
+--				last_HTRANS <= HTRANS;
+--				last_HWRITE <= HWRITE;
+--				last_HSEL   <= HSEL;
+--			end if;
+--		end if;
+--	end process;
+--
+--    -- we are selected for this transfer, link signals to controllers
+--    process(HCLK)
+--    begin
+--		if(rising_edge(HCLK)) then
+--			HREADYOUT <= '0'; -- pull down until we have an something to deliver 
+--			if last_HWRITE = '1'  then -- write
+--            	-- write control signals
+--            	-- write data to Memory Controller
+--            	-- write addr to Memeory Controller
+--            	-- write data to Cache Contorller
+--            	-- write addr to Cache Conroller
+--
+--            	-- do we have to wait for ready signal from someone??? I don't think so...
+--
+--			else -- read
+--            	-- write control signals
+--            	-- write data to Memory Controller
+--            	-- write addr to Memeory Controller
+--            	-- write data to Cache Contorller
+--            	-- write addr to Cache Conroller
+--			end if;
+--		end if;
+--	end process;
+--
+--    -- wait for status of cache controller if we read
+--    -- process(chit)
+--    -- begin
+--    --     if chit = '1' then -- cache hit, get data from cache
+--    --         HRDATA <= crdata; 
+--    --         -- some other signaling stuff????
+--    --         HREADYOUT <= '1' -- pull ready up since we are done
+--    --     else -- cache miss
+--    --         -- wait for DRAM to get the data...
+--    --     end if;
+--    -- end process;
+	--}}}
 
 end cache;
 
