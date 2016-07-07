@@ -9,19 +9,22 @@ entity CACHE_READ_FSM is
 		RES_n             : in  std_logic;                      -- HRESETn
 		REQUEST           : in  std_logic;                      -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
 		SIZE              : in  std_logic_vector( 2 downto 0);  -- HSIZE
-		WORD_SELECT       : in  std_logic_vector( 2 downto 0);  -- The Word Select part from HADDR
+		WORD_SELECT_IN    : in  std_logic_vector( 2 downto 0);  -- The Word Select part from HADDR
 		HIT               : in  std_logic;                      -- The cache hit or miss information
 		DRAM_CMD_FULL     : in  std_logic;                      -- pX_cmd_full
 	    DRAM_RD_EMPTY     : in  std_logic;                      -- pX_rd_empty
 
 		-- These should be one-hot encoded into the state variable
-		latch_bus         : out std_logic;                      -- Latch Bus signals
+		LATCH_BUS         : out std_logic;                      -- Latch Bus signals
 		READY             : out std_logic;                      -- HREADYOUT
-		start_dram_read   : out std_logic;                      -- start a read from the dram
-		zero_ws_in_read   : out std_logic;                      -- start_dram_read && zero_ws_in_read: Read from beginning of cacheline
-		dram_2_sram       : out std_logic;                      -- Connect dram output to data sram input
-		dram_2_output     : out std_logic;                      -- Connect dram output to bus output
-		set_valid_bit     : out std_logic                       -- Write valid bit to cache line in tag ram
+		START_DRAM_READ   : out std_logic;                      -- start a read from the dram
+		-- ZERO_WS_IN_READ   : out std_logic;                      -- start_dram_read && zero_ws_in_read: Read from beginning of cacheline
+		DRAM_2_SRAM       : out std_logic;                      -- Connect dram output to data sram input
+		DRAM_2_OUTPUT     : out std_logic;                      -- Connect dram output to bus output
+		SET_VALID_BIT     : out std_logic                       -- Write valid bit to cache line in tag ram
+		BURST_LENGTH      : out std_logic_vector( 2 downto 0);  -- Used when addressing the DRAM
+		WORD_SELECT_OUT   : in  std_logic_vector( 2 downto 0);  -- The Word Select part from HADDR
+		
 
 		--ADDR_IN           : in  std_logic_vector(31 downto 0);  -- Full read address
 		--ADDR_OUT          : out std_logic_vector(31 downto 0);  -- Full write address for the DDR2-RAM controller
@@ -70,8 +73,10 @@ architecture syn of CACHE_READ_FSM is
 
 	-- bit 0: latch address, read SRAMS if (enable && ready_in && !HWRITE)
 
+	-- States: s_idle, s_tag, s_req0, s_req1, s_rd0, s_rd1, s_rd2, s_rd3, s_rd4, s_rd5, s_rd6, s_rd7
 	-- ATTRIBUTE ENUM_ENCODING : STRING;
 	-- ATTRIBUTE ENUM_ENCODING OF state_type : TYPE IS " 00000000 01000000 ...";
+	-- LATCH_BUS READY START_DRAM_READ ZERO_WS_IN_READ DRAM_2_SRAM DRAM_2_OUTPUT SET_VALID_BIT 
 
 	--}}}
 	--}}}
@@ -98,8 +103,8 @@ begin
 			when s_idle =>
 				if( REQUEST = '1' ) then
 					next_state        <= s_tag after 1 ns;
-					next_word_select  <= WORD_SELECT after 1 ns;
-					next_burst_length <= std_logic_vector(8 - unsigned(WORD_SELECT)) after 1 ns;
+					next_word_select  <= WORD_SELECT_IN after 1 ns;
+					next_burst_length <= std_logic_vector(8 - unsigned(WORD_SELECT_IN)) after 1 ns;
 				end if;
 
 			when s_tag =>
@@ -107,8 +112,8 @@ begin
 					next_state <= s_idle after 1 ns;
 				elsif( ( HIT = '1' )  and ( REQUEST = '1' ) ) then
 					next_state <= s_tag after 1 ns;
-					-- next_word_select <= WORD_SELECT after 1 ns;
-					-- next_burst_length <= std_logic_vector(8 - unsigned(WORD_SELECT)) after 1 ns;
+					-- next_word_select <= WORD_SELECT_IN after 1 ns;
+					-- next_burst_length <= std_logic_vector(8 - unsigned(WORD_SELECT_IN)) after 1 ns;
 				else -- Cache miss
 					next_state <= s_req0 after 1 ns;
 				end if;
@@ -116,6 +121,9 @@ begin
 			when s_req0 =>
 				if( DRAM_CMD_FULL = '1' ) then
 					next_state <= s_req0 after 1 ns;
+
+				elsif( current_burst_length = "111" ) then
+					next_state <= s_rd0 after 1 ns; -- omit second read phase if not neccessary
 				else
 					next_state <= s_req1 after 1 ns;
 					next_burst_length <= current_word_select after 1 ns;
@@ -193,8 +201,8 @@ begin
 					next_state <= s_idle after 1 ns;
 				else
 					next_state        <= s_tag after 1 ns;
-					next_word_select  <= WORD_SELECT after 1 ns;
-					next_burst_length <= std_logic_vector(8 - unsigned(WORD_SELECT)) after 1 ns;
+					next_word_select  <= WORD_SELECT_IN after 1 ns;
+					next_burst_length <= std_logic_vector(8 - unsigned(WORD_SELECT_IN)) after 1 ns;
 				end if;
 
 			when others =>
@@ -213,7 +221,7 @@ begin
 		if(rising_edge(CLK)) then
 			if( RES_n = '1' ) then
 				current_state        <= s_idle;
-				current_word_select  <= "111";
+				current_word_select  <= "000";
 				current_burst_length <= "111";
 			else
 				current_state        <= next_state;

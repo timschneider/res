@@ -68,7 +68,7 @@ entity AHBL2SDRAM is
 end AHBL2SDRAM;
 
 
-
+--{{{
 architecture cache of AHBL2SDRAM is
 
 	--{{{ Address Format:
@@ -85,6 +85,76 @@ architecture cache of AHBL2SDRAM is
 	alias BYTE_SELECT is HADDR( 1 downto  0);
 	--}}}
 
+	--{{{ DRAM Aliases
+
+	--{{{ DRAM Command Path Aliases
+
+	constant CMD_BL_1                      : std_logic_vector( 5 downto 0) := "000000";
+	constant CMD_BL_2                      : std_logic_vector( 5 downto 0) := "000001";
+	constant CMD_BL_3                      : std_logic_vector( 5 downto 0) := "000010";
+	constant CMD_BL_4                      : std_logic_vector( 5 downto 0) := "000011";
+	constant CMD_BL_5                      : std_logic_vector( 5 downto 0) := "000100";
+	constant CMD_BL_6                      : std_logic_vector( 5 downto 0) := "000101";
+	constant CMD_BL_7                      : std_logic_vector( 5 downto 0) := "000110";
+	constant CMD_BL_8                      : std_logic_vector( 5 downto 0) := "000111";
+	constant CMD_EMPTY                     : std_logic                     := '1';
+	constant CMD_NOT_EMPTY                 : std_logic                     := '0';
+	constant CMD_ENABLE                    : std_logic                     := '1';
+	constant CMD_DISABLE                   : std_logic                     := '0';
+	constant CMD_ERROR                     : std_logic                     := '1';
+	constant CMD_NO_ERROR                  : std_logic                     := '0';
+	constant CMD_FULL                      : std_logic                     := '1';
+	constant CMD_NOT_FULL                  : std_logic                     := '0';
+	constant CMD_WRITE                     : std_logic_vector( 2 downto 0) := "000";
+	constant CMD_READ                      : std_logic_vector( 2 downto 0) := "001";
+	constant CMD_WRITE_WITH_AUTO_PRECHARGE : std_logic_vector( 2 downto 0) := "010";
+	constant CMD_READ_WITH_AUTO_PRECHARGE  : std_logic_vector( 2 downto 0) := "011";
+	constant CMD_REFRESH                   : std_logic_vector( 2 downto 0) := "100";
+	--}}}
+
+	--{{{ DRAM Write Path Aliases
+
+	constant WRITE_EMPTY                   : std_logic                     := '1';
+	constant WRITE_NOT_EMPTY               : std_logic                     := '0';
+	constant WRITE_ENABLE                  : std_logic                     := '1';
+	constant WRITE_DISABLE                 : std_logic                     := '0';
+	constant WRITE_ERROR                   : std_logic                     := '1';
+	constant WRITE_NO_ERROR                : std_logic                     := '0';
+	constant WRITE_FULL                    : std_logic                     := '1';
+	constant WRITE_NOT_FULL                : std_logic                     := '0';
+	constant WRITE_BYTE_0_MASK             : std_logic_vector( 3 downto 0) := "1110";
+	constant WRITE_BYTE_1_MASK             : std_logic_vector( 3 downto 0) := "1101";
+	constant WRITE_BYTE_2_MASK             : std_logic_vector( 3 downto 0) := "1011";
+	constant WRITE_BYTE_3_MASK             : std_logic_vector( 3 downto 0) := "0111";
+	constant WRITE_LOW_HALFWORD_MASK       : std_logic_vector( 3 downto 0) := "1100";
+	constant WRITE_HIGH_HALFWORD_MASK      : std_logic_vector( 3 downto 0) := "0011";
+	constant WRITE_WORD_MASK               : std_logic_vector( 3 downto 0) := "0000";
+	constant WRITE_UNDERRUN                : std_logic                     := '1';
+	constant WRITE_NO_UNDERRUN             : std_logic                     := '0';
+	--}}}
+
+	--{{{ DRAM Write Path Aliases
+
+	constant WRITE_EMPTY                   : std_logic                     := '1';
+	constant WRITE_NOT_EMPTY               : std_logic                     := '0';
+	constant read_ENABLE                  : std_logic                     := '1';
+	constant read_DISABLE                 : std_logic                     := '0';
+	constant WRITE_ERROR                   : std_logic                     := '1';
+	constant WRITE_NO_ERROR                : std_logic                     := '0';
+	constant WRITE_FULL                    : std_logic                     := '1';
+	constant WRITE_NOT_FULL                : std_logic                     := '0';
+	constant WRITE_BYTE_0_MASK             : std_logic_vector( 3 downto 0) := "1110";
+	constant WRITE_BYTE_1_MASK             : std_logic_vector( 3 downto 0) := "1101";
+	constant WRITE_BYTE_2_MASK             : std_logic_vector( 3 downto 0) := "1011";
+	constant WRITE_BYTE_3_MASK             : std_logic_vector( 3 downto 0) := "0111";
+	constant WRITE_LOW_HALFWORD_MASK       : std_logic_vector( 3 downto 0) := "1100";
+	constant WRITE_HIGH_HALFWORD_MASK      : std_logic_vector( 3 downto 0) := "0011";
+	constant WRITE_WORD_MASK               : std_logic_vector( 3 downto 0) := "0000";
+	constant WRITE_UNDERRUN                : std_logic                     := '1';
+	constant WRITE_NO_UNDERRUN             : std_logic                     := '0';
+	--}}}
+
+	--}}}
 
 
 	--{{{ foobar
@@ -192,9 +262,59 @@ begin
 	--}}}
 
 end cache;
+--}}}
 
+--{{{
 architecture no_cache of AHBL2SDRAM is
+	--{{{ foobar
+
+	signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
+	signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
+	signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
+	signal last_HSEL   : std_logic;                         -- signal form decoder
+	signal iHWDATA     : std_logic_vector(31 downto 0);     -- incoming data from master
+	signal iHREADY     : std_logic;                         -- previous transaction of Master completed
+	signal iHREADYOUT  : std_logic;                         -- signal to halt transaction until slave-data is ready
+	signal iHRDATA     : std_logic_vector(31 downto 0);     -- outgoing data to master
+	--}}}
 begin
 	-- TODO: Just pass each write and read operation directly to the DDR2-RAM
+	-- capture AHB address phase signals
+	process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
+	begin
+		if(rising_edge(HCLK)) then
+			if HREADY = '1' then  -- check if previous transaction is actually finished
+				last_HADDR  <= HADDR;
+				last_HTRANS <= HTRANS;
+				last_HWRITE <= HWRITE;
+				last_HSEL   <= HSEL;
+			end if;
+		end if;
+	end process;
+
+	-- process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
+	-- begin
+	-- 	if(rising_edge(HCLK)) then
+	-- 		if( HREADY = '1' and HSEL = '1' ) then
+	-- 			if( HWRITE = '0' ) then -- read request
+	-- 				pX_cmd_addr   <= HADDR;
+	-- 				pX_cmd_bl     <= "000000";
+	-- 				pX_cmd_en     <= '1';
+	-- 				pX_cmd_instr  <= "001";
+
+	-- 				pX_rd_en <= '1';
+	-- 				wait rising_edge(HCLK);
+
+
+
+
+	-- 			else	-- write request
+
+
+	-- 			end if;
+	-- 	end if;
+	-- end process;
+
 end no_cache;
+--}}}
 
