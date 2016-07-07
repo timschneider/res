@@ -176,11 +176,54 @@ begin
     hclk <= not hclk after 20 ns;
 
 
+-- AHB Side
     -- test read commands
     hwrite <= '0'; -- we want to read in the next cycles
+    haddr <= "";
+    hwdata <= "0";
+    hready <= '1';
 
     -- test write commands
     hwrite <= '1'; -- we want to write in the next cycles
+    haddr <= "";
+    hwdata <= "110101011101010100";
+    hready <= '1';
+
+
+-- Memory Controller side
+    -- all get the same stepping
+    pX_rd_clk <= hclk;
+    pX_wr_clk <= hclk;
+    pX_cmd_clk <= hclk;
+
+    -- write "fifo"
+    process 
+    begin
+        wait until rising_edge(pX_wr_clk) and rising_edge(pX_wr_clk)
+        -- we can actually ignore the data....
+    end process; 
+
+    -- read "fifo"
+    process 
+        -- variable that count the clock
+        variable cnt : integer := 0;
+    begin
+        wait until rising_edge(pX_rd_clk) and rising_edge(pX_rd_clk)
+        if ( cnt = 8 ) then
+            cnt = 0;
+            pX_rd_data <= "1";
+        else 
+            cnt = cnt + 1;
+        end if;
+    end process; 
+
+    -- cmd "fifo"
+    process 
+        -- variable that count the clock
+        variable cnt : integer := 0;
+    begin
+        wait until rising_edge(pX_cmd_clk) and rising_edge(pX_cmd_clk)
+    end process; 
 
 end rw_test;
 
