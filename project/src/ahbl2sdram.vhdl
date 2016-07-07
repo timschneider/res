@@ -277,6 +277,7 @@ architecture no_cache of AHBL2SDRAM is
 	signal iHREADYOUT  : std_logic;                         -- signal to halt transaction until slave-data is ready
 	signal iHRDATA     : std_logic_vector(31 downto 0);     -- outgoing data to master
 	--}}}
+	connect_not_pX_rd_empty : std_logic := 0;
 begin
 	-- TODO: Just pass each write and read operation directly to the DDR2-RAM
 	-- capture AHB address phase signals
@@ -292,28 +293,42 @@ begin
 		end if;
 	end process;
 
-	-- process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
-	-- begin
-	-- 	if(rising_edge(HCLK)) then
-	-- 		if( HREADY = '1' and HSEL = '1' ) then
-	-- 			if( HWRITE = '0' ) then -- read request
-	-- 				pX_cmd_addr   <= HADDR;
-	-- 				pX_cmd_bl     <= "000000";
-	-- 				pX_cmd_en     <= '1';
-	-- 				pX_cmd_instr  <= "001";
+	 process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
+	 begin
+	 	if(rising_edge(HCLK)) then
+	 		if( HREADY = '1' and HSEL = '1' ) then
+	 			if( HWRITE = '0' ) then -- read request
+	 				pX_cmd_addr             <= HADDR;
+	 				pX_cmd_bl               <= "000000";
+	 				pX_cmd_en               <= '1';
+	 				pX_cmd_instr            <= "001";
+					connect_not_pX_rd_empty <= '1';
+	 				pX_rd_en <= '1';
+	 				wait until rising_edge(HCLK) and pX_rd_empty = '0';
+					connect_not_pX_rd_empty <= '0';
+	 			else	-- write request
+	 				pX_cmd_addr             <= HADDR;
+	 				pX_cmd_bl               <= "000000";
+	 				pX_cmd_en               <= '1';
+	 				pX_cmd_instr            <= "000";
 
-	-- 				pX_rd_en <= '1';
-	-- 				wait rising_edge(HCLK);
+
+	 			end if;
+	 	end if;
+	 	end if;
+	 end process;
+
+	continuous: process(connect_not_pX_rd_empty)
+	begin
+		if(connect_not_pX_rd_empty)
+
+		pX_cmd_en
+		pX_wr_en
+		pX_rd_en
 
 
+	end process;
 
-
-	-- 			else	-- write request
-
-
-	-- 			end if;
-	-- 	end if;
-	-- end process;
 
 end no_cache;
 --}}}
