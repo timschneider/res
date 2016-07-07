@@ -22,7 +22,7 @@ entity AHBL2SDRAM is
 		HSIZE             : in  std_logic_vector( 2 downto 0); -- Transfer Word size: 000: Byte, 001: Halfword, 010: Word, others: undefined
 		-- HBURST         : in  std_logic_vector( 2 downto 0)  -- NOT IMPLEMENTED
 		-- HPROT          : in  std_logic_vector( 3 downto 0)  -- NOT IMPLEMENTED, Could be used to create a seperated cache for instructions and data.
-		HTRANS            : in  std_logic_vector( 1 downto 0); -- Transaction status: 00: IDLE, 01: BUSY, 10: NON-SEQUENTIAL, 11: SEQUENTIAL
+		-- HTRANS         : in  std_logic_vector( 1 downto 0); -- Transaction status: 00: IDLE, 01: BUSY, 10: NON-SEQUENTIAL, 11: SEQUENTIAL
 		-- HMASTLOCK      : in  std_logic;                     -- NOT IMPLEMENTED
 		HREADY            : in  std_logic;                     -- Master's ready signal: 0: Busy, 1: Ready for next transaction
 
@@ -133,56 +133,35 @@ architecture cache of AHBL2SDRAM is
 	constant WRITE_NO_UNDERRUN             : std_logic                     := '0';
 	--}}}
 
-	--{{{ DRAM Write Path Aliases
+	--{{{ DRAM Read Path Aliases
 
-	constant WRITE_EMPTY                   : std_logic                     := '1';
-	constant WRITE_NOT_EMPTY               : std_logic                     := '0';
-	constant read_ENABLE                  : std_logic                     := '1';
-	constant read_DISABLE                 : std_logic                     := '0';
-	constant WRITE_ERROR                   : std_logic                     := '1';
-	constant WRITE_NO_ERROR                : std_logic                     := '0';
-	constant WRITE_FULL                    : std_logic                     := '1';
-	constant WRITE_NOT_FULL                : std_logic                     := '0';
-	constant WRITE_BYTE_0_MASK             : std_logic_vector( 3 downto 0) := "1110";
-	constant WRITE_BYTE_1_MASK             : std_logic_vector( 3 downto 0) := "1101";
-	constant WRITE_BYTE_2_MASK             : std_logic_vector( 3 downto 0) := "1011";
-	constant WRITE_BYTE_3_MASK             : std_logic_vector( 3 downto 0) := "0111";
-	constant WRITE_LOW_HALFWORD_MASK       : std_logic_vector( 3 downto 0) := "1100";
-	constant WRITE_HIGH_HALFWORD_MASK      : std_logic_vector( 3 downto 0) := "0011";
-	constant WRITE_WORD_MASK               : std_logic_vector( 3 downto 0) := "0000";
-	constant WRITE_UNDERRUN                : std_logic                     := '1';
-	constant WRITE_NO_UNDERRUN             : std_logic                     := '0';
+	constant READ_ENABLE                   : std_logic                     := '1';
+	constant READ_DISABLE                  : std_logic                     := '0';
+	constant READ_FULL                     : std_logic                     := '1';
+	constant READ_NOT_FULL                 : std_logic                     := '0';
+	constant READ_EMPTY                    : std_logic                     := '1';
+	constant READ_NOT_EMPTY                : std_logic                     := '0';
+	constant READ_OVERFLOW                 : std_logic                     := '1';
+	constant READ_NO_OVERFLOW              : std_logic                     := '0';
+	constant READ_ERROR                    : std_logic                     := '1';
+	constant READ_NO_ERROR                 : std_logic                     := '0';
 	--}}}
-
 	--}}}
-
-
-	--{{{ foobar
-
---	signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
---	signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
---	signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
---	signal last_HSEL   : std_logic;                         -- signal form decoder
---	signal iHWDATA     : std_logic_vector(31 downto 0);     -- incoming data from master
---	signal iHREADY     : std_logic;                         -- previous transaction of Master completed
---	signal iHREADYOUT  : std_logic;                         -- signal to halt transaction until slave-data is ready
---	signal iHRDATA     : std_logic_vector(31 downto 0);     -- outgoing data to master
-	--}}}
-
 
 	--{{{ The Signals for the Tag SRAM:
-	signal tag_en      : std_logic;
-	signal tag_we      : std_logic;
-	signal tag_idx     : std_logic_vector(9 downto 0);
-	signal tag_read    : std_logic_vector(15 downto 0);
-	signal tag_write   : std_logic_vector(15 downto 0);
+
+	signal tag_en       : std_logic;
+	signal tag_we       : std_logic;
+	signal tag_idx      : std_logic_vector( 9 downto 0);
+	signal tag_read     : std_logic_vector(15 downto 0);
+	signal tag_write    : std_logic_vector(15 downto 0);
 
 	component tag_sram
-		port (clk  : in std_logic;
-			  en   : in std_logic;
-			  we   : in std_logic;
-			  addr : in std_logic_vector(9 downto 0);
-			  di   : in std_logic_vector(15 downto 0);
+		port (clk  : in  std_logic;
+			  en   : in  std_logic;
+			  we   : in  std_logic;
+			  addr : in  std_logic_vector( 9 downto 0);
+			  di   : in  std_logic_vector(15 downto 0);
 			  do   : out std_logic_vector(15 downto 0));
 	end component;
 	--}}}
@@ -190,16 +169,16 @@ architecture cache of AHBL2SDRAM is
 	--{{{ The Signals for the Data SRAM:
 	signal data_en      : std_logic;
 	signal data_we      : std_logic;
-	signal data_idx     : std_logic_vector(9 downto 0);
+	signal data_idx     : std_logic_vector( 9 downto 0);
 	signal data_read    : std_logic_vector(31 downto 0);
 	signal data_write   : std_logic_vector(31 downto 0);
 
 	component data_sram is
-		port (clk  : in std_logic;
-			  en   : in std_logic;
-			  we   : in std_logic;
-			  addr : in std_logic_vector(9 downto 0);
-			  di   : in std_logic_vector(31 downto 0);
+		port (clk  : in  std_logic;
+			  en   : in  std_logic;
+			  we   : in  std_logic;
+			  addr : in  std_logic_vector( 9 downto 0);
+			  di   : in  std_logic_vector(31 downto 0);
 			  do   : out std_logic_vector(31 downto 0));
 	end component;
 	--}}}

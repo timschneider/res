@@ -3,27 +3,23 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
-entity CACHE_READ_FSM is
+entity CACHE_WRITE_FSM is
 	port (
 		CLK               : in  std_logic;                      -- HCLK or QCLK
 		RES_n             : in  std_logic;                      -- HRESETn
-		REQUEST           : in  std_logic;                      -- !HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
+		REQUEST           : in  std_logic;                      -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
 		SIZE              : in  std_logic_vector( 2 downto 0);  -- HSIZE
 		WORD_SELECT_IN    : in  std_logic_vector( 2 downto 0);  -- The Word Select part from HADDR
 		HIT               : in  std_logic;                      -- The cache hit or miss information
 		DRAM_CMD_FULL     : in  std_logic;                      -- pX_cmd_full
-	    DRAM_RD_EMPTY     : in  std_logic;                      -- pX_rd_empty
+	    DRAM_WR_FULL      : in  std_logic;                      -- pX_rd_empty
 
 		-- These should be one-hot encoded into the state variable
 		LATCH_BUS         : out std_logic;                      -- Latch Bus signals
 		READY             : out std_logic;                      -- HREADYOUT
-		START_DRAM_READ   : out std_logic;                      -- start a read from the dram
-		-- ZERO_WS_IN_READ   : out std_logic;                      -- start_dram_read && zero_ws_in_read: Read from beginning of cacheline
-		DRAM_2_SRAM       : out std_logic;                      -- Connect dram output to data sram input
-		DRAM_2_OUTPUT     : out std_logic;                      -- Connect dram output to bus output
-		SET_VALID_BIT     : out std_logic                       -- Write valid bit to cache line in tag ram
-		BURST_LENGTH      : out std_logic_vector( 2 downto 0);  -- Used when addressing the DRAM
-		WORD_SELECT_OUT   : in  std_logic_vector( 2 downto 0);  -- The Word Select part from HADDR
+		START_DRAM_WRITE  : out std_logic;                      -- start a read from the dram
+		
+
 
 
 		--ADDR_IN           : in  std_logic_vector(31 downto 0);  -- Full read address
@@ -32,9 +28,9 @@ entity CACHE_READ_FSM is
 		--shift_distance : out std_logic_vector( 1 downto 0);  -- For controlling the barrel shifter
 		--cache_line_idx : out std_logic_vector( 9 downto 0)  -- For addressing the TAG- and DATA- SRAMS
          );
-end CACHE_READ_FSM;
+end CACHE_WRITE_FSM;
 
-architecture syn of CACHE_READ_FSM is
+architecture syn of CACHE_WRITE_FSM is
 
 	--{{{ Read FSM stuff
 
@@ -42,12 +38,11 @@ architecture syn of CACHE_READ_FSM is
 
 	-- Note: In FPGAs all FlipFlops are at zero after reset
 	type state_type is( -- Next State
-	s_idle, -- REQUEST                    -> s_tag    Wait for request, if request read SRAMS...
-	        --                                        ...and set WS.
+	s_idle, -- REQUEST                    -> s_tag    Wait for request, if request read TAG SRAM...
 
-	s_tag,  -- HIT && !REQUEST            -> s_idle   Compare tag from tag ram with address tag...
-	        -- HIT && REQUEST             -> s_tag    ...bits and put data on the bus. Connects...
-	        -- !HIT                       -> s_req0   ...HIT to HREADYOUT.
+	s_tag,  --        && !REQUEST            -> s_idle   Compare tag from tag ram with address tag bits...
+			--        && REQUEST             -> s_tag    ...When Hit, update cache
+	        --       T                       -> s_req0   ...HIT to HREADYOUT.
 
 	s_req0, -- DRAM_CMD_FULL              -> s_req0   Start DRAM read from addr, burstlength = 8 - WS
 	        -- !DRAM_CMD_FULL             -> s_req1
