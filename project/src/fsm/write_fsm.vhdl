@@ -5,63 +5,41 @@ use ieee.numeric_std.all;
 
 entity CACHE_WRITE_FSM is
 	port (
-		CLK                                : in  std_logic;                      -- HCLK or QCLK
-		RES_n                              : in  std_logic;                      -- HRESETn
-		REQUEST                            : in  std_logic;                      -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
-		HIT                                : in  std_logic;                      -- The cache hit or miss information
-		DRAM_BUSY                          : in  std_logic;                      -- pX_cmd_full || pX_rd_empty
+		CLK                                : in  std_logic; -- HCLK or QCLK
+		RES_n                              : in  std_logic; -- HRESETn
+		REQUEST                            : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
+		DRAM_BUSY                          : in  std_logic; -- pX_cmd_full || pX_rd_empty
+		HIT                                : in  std_logic; -- The cache hit or miss information
 
-		-- These should be one-hot encoded into the state variable
-		LATCH_BUS_IF_REQUEST               : out std_logic;                      -- Latch Bus signals
-		MAP_DRAM_BUSY_2_READY              : out std_logic;                      -- HREADYOUT
-		START_DRAM_WRITE                   : out std_logic                       -- start a read from the dram
+		-- Aways: If Request: save address and size to first register stage and read tag_ram[address]
+		PROPARGATE_WRITE_DRAM0             : out std_logic; -- Propagate address and size to second register stage and write dram[address in first reg stage]
+		WRITE_DRAM1                        : out std_logic; -- write dram[address in second reg stage]
+		MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
         );
 end CACHE_WRITE_FSM;
 
 architecture syn of CACHE_WRITE_FSM is
 
-	--{{{ Read FSM stuff
-
 	--{{{ States: s_idle, s_tag, s_wait
 
+	--       State                                  Encoding    Condition   -> Next State   Description
+	constant s_idle : std_logic_vector(2 downto 0) := "000"; -- REQUEST     -> s_tag    Wait for request, if request read TAG SRAM...
+
+	constant s_tag  : std_logic_vector(2 downto 0) := "101"; -- dram_bysy   -> s_wait   Compare tag from TAG SRAM with address tag bits,
+			                                                 -- REQUEST     -> s_tag    ...write data to DRAM and tie HREADYOUT to DRAM_CMD_FULL.
+			                                                 -- !REQUEST    -> s_idle   ...When HIT, update DATA SRAM with new value.
+
+	constant s_wait : std_logic_vector(2 downto 0) := "011"; -- dram_bysy   -> s_wait   Wait until the DRAM FIFO interface has space and write...
+	                                                         -- REQUEST     -> s_tag    ...the data.
+                                                             -- !REQUEST    -> s_idle
 	-- Note: In FPGAs all FlipFlops are at zero after reset
-	type state_type is( -- Next State
-	s_idle, -- REQUEST                    -> s_tag    Wait for request, if request read TAG SRAM...
-
-	s_tag,  -- dram_bysy                  -> s_wait   Compare tag from TAG SRAM with address tag bits,
-			-- REQUEST                    -> s_tag    ...write data to DRAM and tie HREADYOUT to DRAM_CMD_FULL.
-			-- !REQUEST                   -> s_idle   ...When HIT, update DATA SRAM with new value.
-
-	s_wait  -- dram_bysy                  -> s_wait   Wait until the DRAM FIFO interface has space and write...
-	        -- REQUEST                    -> s_tag    ...the data.
-            -- !REQUEST                   -> s_idle
-	);
-
-	--{{{ Encoding (IDEA):
-
-	-- bit 0: latch address, read SRAMS if (enable && ready_in && !HWRITE)
-
-	-- States: s_idle, s_tag, s_req0, s_req1, s_rd0, s_rd1, s_rd2, s_rd3, s_rd4, s_rd5, s_rd6, s_rd7
-	-- ATTRIBUTE ENUM_ENCODING : STRING;
-	-- ATTRIBUTE ENUM_ENCODING OF state_type : TYPE IS " 00000000 01000000 ...";
-	-- LATCH_BUS READY START_DRAM_READ ZERO_WS_IN_READ DRAM_2_SRAM DRAM_2_OUTPUT SET_VALID_BIT 
-
-	--}}}
 	--}}}
 
-	--{{{ Signals
+	signal current_state,         next_state        : std_logic_vector(2 downto 0) := s_idle;
 
-	signal current_state,         next_state        : state_type := s_idle;
-	signal current_word_select,   next_word_select  : std_logic_vector( 2 downto 0);
-	signal current_burst_length,  next_burst_length : std_logic_vector( 2 downto 0);
-
-	-- signal read_addr   : std_logic_vector(31 downto 0);
-	-- signal read_size   : std_logic_vector( 2 downto 0);
-	--}}}
-	--}}}
 begin
 	--{{{
-	next_state_logic: process(current_state, REQUEST, HIT, DRAM_BUSY)
+	calculate_next_state: process(current_state, REQUEST, HIT, DRAM_BUSY)
 	begin
 		next_state        <= current_state        after 1 ns; -- default assignement
 
@@ -76,7 +54,7 @@ begin
 					next_state <= s_wait after 1 ns;
 				elsif( REQUEST = '1' ) then
 					next_state <= s_tag after 1 ns;
-				else -- Cache miss
+				else
 					next_state <= s_idle after 1 ns;
 				end if;
 
@@ -99,7 +77,7 @@ begin
 	--}}}
 
 	--{{{
-	sp: process(CLK)
+	adopt_next_state: process(CLK)
 	begin
 		if(rising_edge(CLK)) then
 			if( RES_n = '1' ) then
@@ -109,5 +87,12 @@ begin
 			end if;
 		end if;
 	end process;
+	--}}}
+
+	--{{{ Assign output
+
+	PROPARGATE_WRITE_DRAM0    <= current_state(2);
+	WRITE_DRAM1               <= current_state(1);
+	MAP_DRAM_BUSY_2_HREADYOUT <= current_state(0);
 	--}}}
 end syn;
