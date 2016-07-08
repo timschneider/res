@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
-entity CACHE_WRITE_FSM is
+entity WRITE_FSM is
 	port (
 		CLK                                : in  std_logic; -- HCLK or QCLK
 		RES_n                              : in  std_logic; -- HRESETn
@@ -16,9 +16,9 @@ entity CACHE_WRITE_FSM is
 		WRITE_DRAM1                        : out std_logic; -- write dram[address in second reg stage]
 		MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
         );
-end CACHE_WRITE_FSM;
+end WRITE_FSM;
 
-architecture syn of CACHE_WRITE_FSM is
+architecture syn of WRITE_FSM is
 
 	--{{{ States: s_idle, s_tag, s_wait
 
@@ -28,6 +28,7 @@ architecture syn of CACHE_WRITE_FSM is
 	constant s_tag  : std_logic_vector(2 downto 0) := "101"; -- dram_bysy   -> s_wait   Compare tag from TAG SRAM with address tag bits,
 			                                                 -- REQUEST     -> s_tag    ...write data to DRAM and tie HREADYOUT to DRAM_CMD_FULL.
 			                                                 -- !REQUEST    -> s_idle   ...When HIT, update DATA SRAM with new value.
+	                                                         -- NOTE: Use this state to increase HIT/MISS counters, eg: if state == s_tag && hit -> hitcount++
 
 	constant s_wait : std_logic_vector(2 downto 0) := "011"; -- dram_bysy   -> s_wait   Wait until the DRAM FIFO interface has space and write...
 	                                                         -- REQUEST     -> s_tag    ...the data.

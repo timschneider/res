@@ -78,11 +78,11 @@ architecture cache of AHBL2SDRAM is
 	-- |00000000|TAG         |INDEX  |WS |BS|
 	-- |8       |12          |7      |3  |2 |
 
-	alias NULLED      is HADDR(31 downto 24);
-	alias TAG         is HADDR(23 downto 12);
-	alias INDEX       is HADDR(11 downto  5);
-	alias WORD_SELECT is HADDR( 4 downto  2);
-	alias BYTE_SELECT is HADDR( 1 downto  0);
+	alias HADDR_NULLED      is HADDR(31 downto 24);
+	alias HADDR_TAG         is HADDR(23 downto 12);
+	alias HADDR_INDEX       is HADDR(11 downto  5);
+	alias HADDR_WORD_SELECT is HADDR( 4 downto  2);
+	alias HADDR_BYTE_SELECT is HADDR( 1 downto  0);
 	--}}}
 
 	--{{{ DRAM Aliases
@@ -149,25 +149,16 @@ architecture cache of AHBL2SDRAM is
 
 	--}}}
 
+	--{{{ Tag SRAM:
 
-	--{{{ foobar
-
---  signal last_HADDR  : std_logic_vector(31 downto 0);	 -- Slave addr
---  signal last_HWRITE : std_logic;	                     -- High: Master write, Low: Master Read
---  signal last_HSEL   : std_logic;	                     -- signal form decoder
---  signal iHWDATA	 : std_logic_vector(31 downto 0);     -- incoming data from master
---  signal iHREADY	 : std_logic;                         -- previous transaction of Master completed
---  signal iHREADYOUT  : std_logic;	                     -- signal to halt transaction until slave-data is ready
---  signal iHRDATA	 : std_logic_vector(31 downto 0);     -- outgoing data to master
-	--}}}
-
-
-	--{{{ The Signals for the Tag SRAM:
-	signal tag_en      : std_logic;
-	signal tag_we      : std_logic;
-	signal tag_idx     : std_logic_vector(9 downto 0);
-	signal tag_read    : std_logic_vector(15 downto 0);
-	signal tag_write   : std_logic_vector(15 downto 0);
+	signal tag_sram_en   : std_logic;
+	signal tag_sram_we   : std_logic;
+	signal tag_sram_idx  : std_logic_vector( 9 downto 0);
+	signal tag_sram_do   : std_logic_vector(15 downto 0);
+	alias  tag_sram_do_tag   is tag_sram_do(11 downto 0);
+	alias  tag_sram_do_valid is tag_sram_do(         12);
+	alias  tag_sram_do_busy  is tag_sram_do(         13);
+	signal tag_sram_di   : std_logic_vector(15 downto 0);
 
 	component tag_sram
 		port (clk  : in std_logic;
@@ -179,12 +170,13 @@ architecture cache of AHBL2SDRAM is
 	end component;
 	--}}}
 
-	--{{{ The Signals for the Data SRAM:
-	signal data_en      : std_logic;
-	signal data_we      : std_logic;
-	signal data_idx     : std_logic_vector(9 downto 0);
-	signal data_read    : std_logic_vector(31 downto 0);
-	signal data_write   : std_logic_vector(31 downto 0);
+	--{{{ Data SRAM:
+
+	signal data_sram_en         : std_logic;
+	signal data_sram_we         : std_logic;
+	signal data_sram_idx        : std_logic_vector(9 downto 0);
+	signal data_sram_di         : std_logic_vector(31 downto 0);
+	signal data_sram_do         : std_logic_vector(31 downto 0);
 
 	component data_sram is
 		port (clk  : in std_logic;
@@ -196,65 +188,97 @@ architecture cache of AHBL2SDRAM is
 	end component;
 	--}}}
 
-	--{{{
-	signal last_HADDR  : std_logic_vector(31 downto 0);	 -- Slave addr
+	--{{{ Address and Data save registers
+
+	signal SAVE0_HADDR   : std_logic_vector(31 downto  0);
+	alias  Save0_HADDR_NULLED      is HADDR(31 downto 24);
+	alias  Save0_HADDR_TAG         is HADDR(23 downto 12);
+	alias  Save0_HADDR_INDEX       is HADDR(11 downto  5);
+	alias  Save0_HADDR_WORD_SELECT is HADDR( 4 downto  2);
+	alias  Save0_HADDR_BYTE_SELECT is HADDR( 1 downto  0);
+	signal SAVE0_MASK    : std_logic_vector( 3 downto  0);
+	--signal SAVE0_DATA   : std_logic_vector(31 downto 0);
+
+	signal SAVE1_HADDR   : std_logic_vector(31 downto  0);
+	alias  Save1_HADDR_NULLED      is HADDR(31 downto 24);
+	alias  Save1_HADDR_TAG         is HADDR(23 downto 12);
+	alias  Save1_HADDR_INDEX       is HADDR(11 downto  5);
+	alias  Save1_HADDR_WORD_SELECT is HADDR( 4 downto  2);
+	alias  Save1_HADDR_BYTE_SELECT is HADDR( 1 downto  0);
+	signal SAVE1_MASK    : std_logic_vector( 3 downto  0);
+	signal SAVE1_DATA    : std_logic_vector(31 downto  0);
 	--}}}
 
+	--{{{ Write FSM
 
+	signal write_request             : std_logic;
+	signal write_dram_busy           : std_logic;
+	signal hit                       : std_logic;
+    signal propargate_write_dram0    : std_logic;
+    signal write_dram1               : std_logic;
+    signal map_dram_busy_2_hreadyout : std_logic;
+
+	component WRITE_FSM is
+	port (
+		CLK                                : in  std_logic; -- HCLK or QCLK
+		RES_n                              : in  std_logic; -- HRESETn
+		REQUEST                            : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
+		DRAM_BUSY                          : in  std_logic; -- pX_cmd_full || pX_rd_empty
+		HIT                                : in  std_logic; -- The cache hit or miss information
+
+		-- Aways: If Request: save address and size to first register stage and read tag_ram[address]
+		PROPARGATE_WRITE_DRAM0             : out std_logic; -- Propagate address and size to second register stage and write dram[address in first reg stage]
+		WRITE_DRAM1                        : out std_logic; -- write dram[address in second reg stage]
+		MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
+        );
+	end component;
+	--}}}
+
+	--{{{ Read FSM
+
+	--}}}
 
 begin
 
-	--{{{ Commented
+	--{{{ Port Maps
 
---  -- capture AHB address phase signals
---  process(HCLK) -- MOX: We can start the TAG lookup during the address phase. Then, we can write or read the data immediately.
---  begin
---	  if(rising_edge(HCLK)) then
---		  if HREADY = '1' then  -- check if previous transaction is actually finished
---			  last_HADDR  <= HADDR;
---			  last_HTRANS <= HTRANS;
---			  last_HWRITE <= HWRITE;
---			  last_HSEL   <= HSEL;
---		  end if;
---	  end if;
---  end process;
---
---	-- we are selected for this transfer, link signals to controllers
---	process(HCLK)
---	begin
---	  if(rising_edge(HCLK)) then
---		  HREADYOUT <= '0'; -- pull down until we have an something to deliver 
---		  if last_HWRITE = '1'  then -- write
---			  -- write control signals
---			  -- write data to Memory Controller
---			  -- write addr to Memeory Controller
---			  -- write data to Cache Contorller
---			  -- write addr to Cache Conroller
---
---			  -- do we have to wait for ready signal from someone??? I don't think so...
---
---		  else -- read
---			  -- write control signals
---			  -- write data to Memory Controller
---			  -- write addr to Memeory Controller
---			  -- write data to Cache Contorller
---			  -- write addr to Cache Conroller
---		  end if;
---	  end if;
---  end process;
---
---	-- wait for status of cache controller if we read
---	-- process(chit)
---	-- begin
---	--	 if chit = '1' then -- cache hit, get data from cache
---	--		 HRDATA <= crdata; 
---	--		 -- some other signaling stuff????
---	--		 HREADYOUT <= '1' -- pull ready up since we are done
---	--	 else -- cache miss
---	--		 -- wait for DRAM to get the data...
---	--	 end if;
---	-- end process;
+	ts: tag_sram    port map(clk => QCLK, en => tag_sram_en,  we => tag_sram_we,  addr => tag_sram_idx,  di => tag_sram_di,  do => tag_sram_do);
+	ds: data_sram   port map(clk => QCLK, en => data_sram_en, we => data_sram_we, addr => data_sram_idx, di => data_sram_di, do => data_sram_do);
+	w_fsm: WRITE_FSM port map(CLK => QCLK,
+	                          RES_n => HRESETn,
+	                          REQUEST => write_request,
+	                          DRAM_BUSY => write_dram_busy,
+	                          HIT => hit,
+	                          PROPARGATE_WRITE_DRAM0 => propargate_write_dram0,
+	                          WRITE_DRAM1 => write_dram1,
+	                          MAP_DRAM_BUSY_2_HREADYOUT => map_dram_busy_2_hreadyout
+	                          );
 	--}}}
+
+
+	--{{{ Common FSM signals
+
+	hit                       <= '1' after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns;
+	HREADYOUT                 <= not write_dram_busy after 1 ns when (map_dram_busy_2_hreadyout = '1') else '1' after 1 ns; -- TODO: Read FSM auch übernehmen.
+	--}}}
+
+	--{{{ Write FSM signals
+
+	write_request             <= HWRITE and HREADY and HSEL after 1 ns;
+	write_dram_busy           <= pX_cmd_full or pX_rd_empty after 1 ns;
+
+    -- propargate_write_dram0    : std_logic;
+    -- write_dram1               : std_logic;
+    -- map_dram_busy_2_hreadyout : std_logic;
+
+	--}}}
+
+
+
+
+
+
+
 
 end cache;
 --}}}
@@ -264,7 +288,7 @@ architecture no_cache of AHBL2SDRAM is
 	--{{{ foobar
 
 	signal last_HADDR  : std_logic_vector(31 downto 0);     -- Slave addr
-	signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
+	--signal last_HTRANS : std_logic_vector(1 downto 0);      -- ascending order: (IDLE, BUSY, NON-SEQUENTIAL, SEQUENTIAL);
 	signal last_HWRITE : std_logic;                         -- High: Master write, Low: Master Read
 	signal last_HSEL   : std_logic;                         -- signal form decoder
 	signal iHWDATA     : std_logic_vector(31 downto 0);     -- incoming data from master
@@ -272,7 +296,7 @@ architecture no_cache of AHBL2SDRAM is
 	signal iHREADYOUT  : std_logic;                         -- signal to halt transaction until slave-data is ready
 	signal iHRDATA     : std_logic_vector(31 downto 0);     -- outgoing data to master
 	--}}}
-	signal connect_not_pX_rd_empty : std_logic := 0;
+	signal connect_not_pX_rd_empty : std_logic := '0';
 begin
 	HRDATA <= pX_rd_data;
 
@@ -283,7 +307,7 @@ begin
 		if(rising_edge(HCLK)) then
 			if HREADY = '1' then  -- check if previous transaction is actually finished
 				last_HADDR  <= HADDR;
-				last_HTRANS <= HTRANS;
+				--last_HTRANS <= HTRANS;
 				last_HWRITE <= HWRITE;
 				last_HSEL   <= HSEL;
 			end if;
@@ -295,18 +319,18 @@ begin
 		if(rising_edge(HCLK)) then
 			if( HREADY = '1' and HSEL = '1' ) then
 				if( HWRITE = '0' ) then -- read request
-					pX_cmd_addr             <= HADDR;
+					pX_cmd_addr             <= HADDR(31 downto 2);
 					pX_cmd_bl               <= "000000";
 					pX_cmd_en               <= '1';
 					pX_cmd_instr            <= "001";
 					connect_not_pX_rd_empty <= '1';
 					pX_rd_en                <= '1';
-					wait until rising_edge(HCLK) and pX_rd_empty = '0';
+					--wait until rising_edge(HCLK) and pX_rd_empty = '0';
 					connect_not_pX_rd_empty <= '0';
 					pX_cmd_en <= '0';
 					pX_rd_en <= '0';
 				else	-- write request
-					pX_cmd_addr             <= HADDR;
+					pX_cmd_addr             <= HADDR(31 downto 2);
 					pX_cmd_bl               <= "000000";
 					pX_cmd_en               <= '1';
 					pX_cmd_instr            <= "000";
