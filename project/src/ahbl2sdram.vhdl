@@ -63,8 +63,11 @@ entity AHBL2SDRAM is
 		pX_rd_overflow    : in  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
 		pX_rd_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve. }}}
 
+-- Double speed internal clock
+		DCLK              : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
+
 -- Quadruple speed internal clock
-		QCLK              : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
+--		QCLK              : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
 end AHBL2SDRAM;
 
 
@@ -220,7 +223,7 @@ architecture cache of AHBL2SDRAM is
 
 	component WRITE_FSM is
 	port (
-		CLK                                : in  std_logic; -- HCLK or QCLK
+		CLK                                : in  std_logic; -- DCLK
 		RES_n                              : in  std_logic; -- HRESETn
 		REQUEST                            : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
 		DRAM_BUSY                          : in  std_logic; -- pX_cmd_full || pX_rd_empty
@@ -242,9 +245,9 @@ begin
 
 	--{{{ Port Maps
 
-	ts: tag_sram    port map(clk => QCLK, en => tag_sram_en,  we => tag_sram_we,  addr => tag_sram_idx,  di => tag_sram_di,  do => tag_sram_do);
-	ds: data_sram   port map(clk => QCLK, en => data_sram_en, we => data_sram_we, addr => data_sram_idx, di => data_sram_di, do => data_sram_do);
-	w_fsm: WRITE_FSM port map(CLK => QCLK,
+	ts: tag_sram    port map(clk => DCLK, en => tag_sram_en,  we => tag_sram_we,  addr => tag_sram_idx,  di => tag_sram_di,  do => tag_sram_do);
+	ds: data_sram   port map(clk => DCLK, en => data_sram_en, we => data_sram_we, addr => data_sram_idx, di => data_sram_di, do => data_sram_do);
+	w_fsm: WRITE_FSM port map(CLK => DCLK,
 	                          RES_n => HRESETn,
 	                          REQUEST => write_request,
 	                          DRAM_BUSY => write_dram_busy,
@@ -272,13 +275,6 @@ begin
     -- map_dram_busy_2_hreadyout : std_logic;
 
 	--}}}
-
-
-
-
-
-
-
 
 end cache;
 --}}}

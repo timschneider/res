@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
-entity CACHE_READ_FSM is
+entity READ_FSM is
 	port (
 		CLK               : in  std_logic;                      -- HCLK or QCLK
 		RES_n             : in  std_logic;                      -- HRESETn
@@ -32,9 +32,9 @@ entity CACHE_READ_FSM is
 		--shift_distance : out std_logic_vector( 1 downto 0);  -- For controlling the barrel shifter
 		--cache_line_idx : out std_logic_vector( 9 downto 0)  -- For addressing the TAG- and DATA- SRAMS
          );
-end CACHE_READ_FSM;
+end READ_FSM;
 
-architecture syn of CACHE_READ_FSM is
+architecture syn of READ_FSM is
 
 	--{{{ Read FSM stuff
 
@@ -84,8 +84,8 @@ architecture syn of CACHE_READ_FSM is
 	--{{{ Signals
 
 	signal current_state,         next_state        : state_type := s_idle;
-	signal current_word_select,   next_word_select  : std_logic_vector( 2 downto 0);
-	signal current_burst_length,  next_burst_length : std_logic_vector( 2 downto 0);
+	-- signal current_word_select,   next_word_select  : std_logic_vector( 2 downto 0);
+	-- signal current_burst_length,  next_burst_length : std_logic_vector( 2 downto 0);
 
 	-- signal read_addr   : std_logic_vector(31 downto 0);
 	-- signal read_size   : std_logic_vector( 2 downto 0);
