@@ -1,47 +1,128 @@
+%{{{
+%\documentclass{scrartcl}
+%\usepackage{tikz}
+%\usetikzlibrary{arrows,automata,tikz-timing}
+%
+%\begin{document}
+%\resizebox{\linewidth}{!}{%
+%	\centering
+%\begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm]
+%	\node[initial,state,accepting] (idl_rdtg)                                          {$idl\_rdtg$};
+%	\node[state]                   (cmp_dlv)  [right of=idl_rdtg, node distance=7.0cm] {$cmp\_dlv$};
+%	\node[state]                   (rq0)      [right of=cmp_dlv,  node distance=7.0cm] {$rq_0$};
+%	\node[state]                   (rq1)      [below of=rq0,      node distance=4.5cm] {$rq_1$};
+%	\node[state]                   (rd0)      [below of=rq1,      node distance=4.5cm] {$rd_0$};
+%	\node[state]                   (rd1)      [left  of=rd0]                           {$rd_1$};
+%	\node[state]                   (rd1_)     [above of=rd1]                           {$rd_1'$};
+%	\node[state]                   (rd2)      [left  of=rd1]                           {$rd_2$};
+%	\node[state]                   (rd3)      [left  of=rd2]                           {$rd_3$};
+%	\node[state]                   (rd4)      [left  of=rd3]                           {$rd_4$};
+%	\node[state]                   (rd5)      [left  of=rd4]                           {$rd_5$};
+%	\node[state]                   (rd6)      [left  of=rd5]                           {$rd_6$};
+%	\node[state]                   (rd7)      [left  of=rd6]                           {$rd_7$};
+%	\node[state]                   (wait)     [above of=rd7,      node distance=4.5cm] {$wait$};
+%
+%
+%	\path[->] (idl_rdtg)  edge [loop above] node {a} (idl_rdtgS)
+%	                      edge [bend left]  node {a} (cmp_dlv)
+%	          (cmp_dlv)   edge              node {a} (idl_rdtg)
+%	                      edge              node {b} (rq0)
+%	                      edge              node {b} (rq1)
+%						  edge [bend left]  node {b} (rd0)
+%	          (rq0)       edge [loop above] node {b} (rq0)
+%	                      edge              node {b} (rq1)
+%	                      edge [bend left]  node {X} (rd0)
+%
+%
+%
+%
+%						  ;
+%\end{tikzpicture}
+%}
+%
+%
+%
+%\resizebox{\linewidth}{!}{%
+%	\centering
+%\begin{tikztimingtable}[%
+%		timing/dslope=0.2,
+%		timing/dslope=0.2,
+%		%timing/name/.style={font=\sffamily\scriptsize},
+%		%timing/d/text/.style={font=\sffamily\tiny},
+%		%rayz/.style={timing/z/.append style={gray}},
+%		%iming/n/.style={rectangle},
+%		timing/metachar={{K}[2]{#1h!{++(0,-.5\yunit)} N[rectangle,scale=.3]{#2}!{++(0,+.5\yunit)} #1h}},
+%		timing/metachar={{J}[2]{#1l!{++(0,+.5\yunit)} N[rectangle,scale=.3]{#2}!{++(0,-.5\yunit)} #1l}},
+%	]
+%	SDA$_{Master}$ & hL DD{A}{} d[dotted]D;d{}DD{A}{} HK{R}{} HH HH HH; h[dotted]H;h HH HH HK{NACK} LLhH \\
+%	SDA$_{Slave}$  & hH HH     ;h[dotted]H;h  HH      HH        LJ{ACK} HH DD{D}{} d[dotted]D;d{}DD{D}{} DD{D}{} HK{} HHhH \\
+%	SDA            & hL DD{A}{} d[dotted]D;d{}DD{A}{} HK{R}{} LJ{ACK} HH DD{D}{} d[dotted]D;d{}DD{D}{} DD{D}{} HK{NACK} LLhH \\
+%	SCL & HLK{1} L;  [dotted]L;L   K{7} L  K{8} L    K{9}   LL LK{1} L; [dotted]L;L   K{7} L  K{8} L  K{9}   LLHH \\
+%	\extracode
+%	\begin{background}
+%		\vertlines[help lines]{}
+%		\horlines[help lines]{}
+%		\show\horlines
+%	%	\draw [->,>=latex] (0,-\nrows-1) -- (\twidth+1,-\nrows-1);
+%	%	\foreach \n in {0,1,...,\twidth}
+%	%	\draw (\n,-\nrows-1+.1) -- +(0,-.2)
+%	%	node [below,inner sep=2pt] {\scalebox{.75}{\tiny\n}};
+%	\end{background}
+%	%\tablegrid[black!25]
+%\end{tikztimingtable}
+%}
+%
+%\end{document}
+%}}}
+
+
+
+
 \documentclass[12pt]{article}
 \usepackage{tikz}
 
 \begin{document}
 
-\begin{center}
+\resizebox{\linewidth}{!}{%
+	\centering
+%\begin{center}
 \begin{tikzpicture}[scale=0.2]
 \tikzstyle{every node}+=[inner sep=0pt]
 \draw [black] (13.1,-9.8) circle (3);
-\draw (13.1,-9.8) node {$idl\_rdtg$};
+\draw (13.1,-9.8) node {$idl\_rdt$};
 \draw [black] (13.1,-9.8) circle (2.4);
 \draw [black] (39.8,-9.8) circle (3);
 \draw (39.8,-9.8) node {$cmp\_dlv$};
 \draw [black] (76.6,-24.9) circle (3);
-\draw (76.6,-24.9) node {$rq1$};
+\draw (76.6,-24.9) node {$req_1$};
 \draw [black] (76.6,-50.4) circle (3);
-\draw (76.6,-50.4) node {$rd0$};
+\draw (76.6,-50.4) node {$rd_0$};
 \draw [black] (67.4,-50.4) circle (3);
-\draw (67.4,-50.4) node {$rd1$};
+\draw (67.4,-50.4) node {$rd_1$};
 \draw [black] (58.3,-50.4) circle (3);
-\draw (58.3,-50.4) node {$rd2$};
+\draw (58.3,-50.4) node {$rd_2$};
 \draw [black] (49.4,-50.4) circle (3);
-\draw (49.4,-50.4) node {$rd3$};
+\draw (49.4,-50.4) node {$rd_3$};
 \draw [black] (40.4,-50.4) circle (3);
-\draw (40.4,-50.4) node {$rd4$};
+\draw (40.4,-50.4) node {$rd_4$};
 \draw [black] (31.3,-50.4) circle (3);
-\draw (31.3,-50.4) node {$rd5$};
+\draw (31.3,-50.4) node {$rd_5$};
 \draw [black] (22.3,-50.4) circle (3);
-\draw (22.3,-50.4) node {$rd6$};
+\draw (22.3,-50.4) node {$rd_6$};
 \draw [black] (13.1,-50.4) circle (3);
-\draw (13.1,-50.4) node {$rd7$};
+\draw (13.1,-50.4) node {$rd_7$};
 \draw [black] (13.1,-29.6) circle (3);
-\draw (13.1,-29.6) node {$wait$};
+\draw (13.1,-29.6) node {$sync$};
 \draw [black] (76.6,-9.8) circle (3);
-\draw (76.6,-9.8) node {$rq0$};
+\draw (76.6,-9.8) node {$req_0$};
+\draw [black] (67.4,-41.3) circle (3);
+\draw (67.4,-41.3) node {$rd_{1_{keep}}$};
 \draw [black] (15.838,-8.576) arc (111.1609:68.8391:29.398);
 \fill [black] (37.06,-8.58) -- (36.5,-7.82) -- (36.14,-8.75);
 \draw (26.45,-6.09) node [above] {$req$};
 \draw [black] (76.6,-27.9) -- (76.6,-47.4);
 \fill [black] (76.6,-47.4) -- (77.1,-46.6) -- (76.1,-46.6);
-\draw (76.1,-37.65) node [left] {$!db$};
-\draw [black] (73.6,-50.4) -- (70.4,-50.4);
-\fill [black] (70.4,-50.4) -- (71.2,-50.9) -- (71.2,-49.9);
-\draw (72,-49.9) node [above] {$!de$};
+\draw (77.1,-37.65) node [right] {$!db$};
 \draw [black] (55.3,-50.4) -- (52.4,-50.4);
 \fill [black] (52.4,-50.4) -- (53.2,-50.9) -- (53.2,-49.9);
 \draw (53.85,-49.9) node [above] {$!de$};
@@ -110,7 +191,7 @@
 \draw (76.1,-17.35) node [left] {$!db$};
 \draw [black] (42.58,-10.94) -- (73.82,-23.76);
 \fill [black] (73.82,-23.76) -- (73.27,-22.99) -- (72.89,-23.92);
-\draw (52.96,-17.94) node [below] {$!hit\mbox{ }\&\mbox{ }!db$};
+\draw (63.44,-16.76) node [above] {$!hit\mbox{ }\&\mbox{ }!db$};
 \draw [black] (75.277,-7.12) arc (234:-54:2.25);
 \draw (76.6,-2.55) node [above] {$db$};
 \fill [black] (77.92,-7.12) -- (78.8,-6.77) -- (77.99,-6.18);
@@ -120,8 +201,33 @@
 \draw [black] (11.64,-47.78) arc (-153.07961:-206.92039:39.05);
 \fill [black] (11.64,-12.42) -- (10.83,-12.91) -- (11.72,-13.36);
 \draw (6.91,-30.1) node [left] {$!de\mbox{ }\&\mbox{ }!HCLK$};
+\draw [black] (74.47,-48.29) -- (69.53,-43.41);
+\fill [black] (69.53,-43.41) -- (69.75,-44.33) -- (70.45,-43.62);
+\draw (74.17,-45.37) node [above] {$!de$};
+\draw [black] (67.4,-44.3) -- (67.4,-47.4);
+\fill [black] (67.4,-47.4) -- (67.9,-46.6) -- (66.9,-46.6);
+\draw (66.9,-45.85) node [left] {$de$};
+\draw [black] (65.28,-43.42) -- (60.42,-48.28);
+\fill [black] (60.42,-48.28) -- (61.34,-48.07) -- (60.63,-47.36);
+\draw (60.68,-45.37) node [above] {$!de$};
+\draw [black] (77.611,-12.624) arc (18.1628:-18.1628:56.063);
+\fill [black] (77.61,-47.58) -- (78.34,-46.97) -- (77.39,-46.66);
+\draw (80.9,-30.1) node [right] {$WS=0$};
+\draw [black] (42.468,-11.172) arc (61.617:22.76157:73.928);
+\fill [black] (75.5,-47.61) -- (75.65,-46.68) -- (74.73,-47.07);
+\draw (62.64,-25.11) node [right] {$WS=0$};
 \end{tikzpicture}
-\end{center}
+%\end{center}
+}
+
+\vspace*{1cm}
+\begin{tabular}{l | l}
+	Name & Description\\
+	\hline
+	req & foo\\
+	hit & bar\\
+	db  & baz\\
+	de  & foobar\\
+\end{tabular}
 
 \end{document}
-

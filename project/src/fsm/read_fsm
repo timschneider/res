@@ -1,37 +1,61 @@
-Name        | Description                                                                                                                                                                                                                   | Next state                               | Encoding
-------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------+--------------------
-idle_rdtg   | Do nothing, wait for reguest. If Req read the TAGSRAM[IDX] and DATASRAM[IDX|WS].                                                                                                                                              | Req ->                                   | 1...
-cmptg_dlvdt | Connect DATASRAM_output to HRDATA, Connect HIT := ((TAGSRAM_output[TAG] == SAVE0_HADDR) && TAGSRAM_output[VALID]) to HREDYOUT. If !hit & !db read DRAM[SAVE0_HADDR]+(8-SAVE0_WS). Propagate SAVE0 to SAVE1.                   |                                          | 1...
-rq0         | Set HREADYOUT to 0. If !db read DRAM[SAVE1_HADDR]+(8-SAVE1_WS).                                                                                                                                                               |                                          | 0
-rq1         | Set HREADYOUT to 0. If !db read DRAM[SAVE1_HADDR-SAVE0_WS]+(SAVE1_WS). Write SAVE1_TAG + VALID to TAGSRAM[IDX].                                                                                                               |                                          | 0
-rd0         | Wait until Data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++], HRDATA and the KEEP_REGISTERS. Connect !de to HREADYOUT.                                                    |                                          | 0
-rd1         | Wait until Data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++] and connect the KEEP_REGISTERS to HRDATA. Set mark HREADYOUT for release the next cycle.                     |                                          | 0
-rd2         | Wait until data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                             |                                          | 0
-rd3         | Wait until data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                             |                                          | 0
-rd4         | Wait until data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                             |                                          | 0
-rd5         | Wait until data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                             |                                          | 0
-rd6         | Wait until data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                             |                                          | 0
-rd7         | Wait until data can be read from the DRAM read buffer. If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++]. (Clear busy bit in TAGSRAM[SAVE1_IDX].)                                                                     |                                          | 1...
-wait        | Clone of idle_rdtg but can only transition to idle_rdtg. Used to re-synchronise the FSM to the HCLK.                                                                                                                          |                                          | 1...
+Name      | Description                                                                                                                                                                                                                   | Encoding
+----------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------
+idl_rdtg  | Do nothing, wait for reguest. When a request arrives, start reading the TAG and DATA from the cache line in the SRAMS.
+cmp_dlv   | Compare the requested TAG with the one in the cache. If they match, deliver the data and be done, if not, start fetching a cache line from the DRAM, beginning with the requested word.
+rq0       | If the command FiFo of the DRAM was full, loop here until the read command could be stored in the command FiFo.
+rq1       | Send a second read command to get the first part of the cache line, from the beginning to requested word.
+rd0       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache, a register and write it to the bus.
+rd1       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache and connect the register with the data to the bus.
+rd1'      | Special state used to handle the ready signal. Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache and connect the register with the data to the bus.
+rd2       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache.
+rd3       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache.
+rd4       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache.
+rd5       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache.
+rd6       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache.
+rd7       | Wait until Data can be read from the DRAM read buffer. If data can be read, store it in the cache.
+wait      | Clone of idle_rdtg but can only transition to idle_rdtg. Used to re-synchronise the FSM to the HCLK.                                                                                                                          | 1...
+
+
+
+
+          |                                                                                                                                                                    | Output                                                    |
+Name      | Description                                                                                                                                                        | con | read | hreadyout |                                  | Encoding
+----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------+--------------------
+idl_rdtg  | Do nothing, wait for reguest. If Req read the TAGSRAM[IDX] and DATASRAM[IDX|WS].                                                                                   | 1 00   00                                                 | 10 0   000 00  000
+cmp_dlv   | Connect DATASRAM_output to HRDATA. Propagate SAVE0 to SAVE1.                                                                                                       | 1 10   01                                                 | 11 0   100 01  000
+          | Connect HIT to HREADYOUT.                                                                                                                                          |                                                           |
+          | If !hit & !db read DRAM[SAVE0_HADDR]+(8-SAVE0_WS).                                                                                                                 |                                                           |
+rq0       | If !db read DRAM[SAVE1_HADDR]+(8-SAVE1_WS).                                                                                                                        | 0 00   10                                                 | 00 0   110 10  000
+          | Set HREADYOUT to 0.                                                                                                                                                |                                                           |
+rq1       | If !db read DRAM[SAVE1_HADDR-SAVE0_WS]+(SAVE1_WS). Write SAVE1_TAG + VALID to TAGSRAM[IDX].                                                                        | 0 00   11                                                 | 00 0   110 11  000
+          | Set HREADYOUT to 0.                                                                                                                                                |                                                           |
+rd0       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 10   00                                                 | 00 1   101 00  000
+          |                                                           Connect write pX_rd_data to HRDATA and the KEEP_REGISTERS. Connect !de to HREADYOUT.                     |                                                           |
+rd1'      | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 10   00                                                 | 00 1   111 00  001
+          |                                                           Connect the KEEP_REGISTERS to HRDATA. Set HREADYOUT to 1.                                                |                                                           |
+rd1       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 00   00                                                 | 00 1   000 00  001
+rd2       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 00   00                                                 | 00 1   000 00  010
+rd3       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 00   00                                                 | 00 1   000 00  011
+rd4       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 00   00                                                 | 00 1   000 00  100
+rd5       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 00   00                                                 | 00 1   000 00  101
+rd6       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 00   00                                                 | 00 1   000 00  110
+rd7       | If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].                                                                                                         | 0 00   00                                                 | 10 1   000 00  111
+wait      | Clone of idle_rdtg but can only transition to idle_rdtg. Used to re-synchronise the FSM to the HCLK. If Req read the TAGSRAM[IDX] and DATASRAM[IDX|WS].            | 1 00   00                                                 | 10 0   000 00  000
 
 * Only one Cache Line can be busy at any given moment. Busy-information can therefore be taken from the SAVE1_TAG register.
 * When the DRAM returns the data word requested by the CPU it is buffered in the KEEP_REGISTERS to avoid losing it. Since the cache controller works with twice the HCLK, a word received in the first HCLK phase (HCLK = 1), would be overwritten on the fallig edge of HCLK without being sampled by the CPU.
-
-
+* HIT := ((TAGSRAM_output[TAG] == SAVE0_HADDR) && TAGSRAM_output[VALID])
 
 
 TODO:
-If Req read the TAGSRAM[IDX] and DATASRAM[IDX|WS]
-Connect DATASRAM_output to HRDATA, Connect HIT := ((TAGSRAM_output[TAG] == SAVE0_HADDR) && TAGSRAM_output[VALID]) to HREDYOUT.
-If !hit & !db read DRAM[SAVE0_HADDR]+(8-SAVE0_WS).
-Propagate SAVE0 to SAVE1.
-Set HREADYOUT to 0.
-If !db read DRAM[SAVE1_HADDR]+(8-SAVE1_WS).
-If !db read DRAM[SAVE1_HADDR-SAVE0_WS]+(SAVE1_WS).
-Write SAVE1_TAG + VALID to TAGSRAM[IDX].
-If !de write pX_rd_data to DATASRAM[SAVE1_IDX|SAVE1_WS++].
-Connect pX_rd_data to HRDATA and the KEEP_REGISTERS. Connect !de to HREADYOUT.
-Connect the KEEP_REGISTERS to HRDATA. Set mark HREADYOUT for release the next cycle.
+connect: req -> TAGSRM_re, req -> DATASRAM_re, HADDR[IDX] -> TAGSRM_addr, HADDR[IDX|WS] -> DATASRAM_addr
+
+connect: DATASRAM_do -> HRDATA, TAGSRAM_do -> HIT_in, HIT_out -> HREADYOUT
+
+connect: 0 -> HREADYOUT
+
+
+con: | req -> TAGSRM_re, req -> DATASRAM_re, HADDR[IDX] -> TAGSRM_addr, HADDR[IDX|WS] -> DATASRAM_addr | 
 
 
 
@@ -44,18 +68,31 @@ Connect the KEEP_REGISTERS to HRDATA. Set mark HREADYOUT for release the next cy
 
 
 
-
-
-
-
-
+// Always : Read HADDR to SAVE0_HADDR, read HSIZE into SAVE0_HSIZE
 Encoding:
+get_tag   : Connect: HADDR[TAG] -> TAGSRM_read_port, HADDR[IDX|WS] -> DATASRAM_read_port, Req -> TAGSRAM_re, Req -> DATASRAM_re // start SRAM reads when request
+cmp_dlv   : Connect DATASRAM_output to HRDATA, Connect HIT to HREADYOUT.  Propagate SAVE0 to SAVE1.
 
-latch_bus : Connect: HADDR[tag] -> TAGSRM_read_port, HADDR[idx] -> DATASRAM_read_port, Req -> TAGSRAM_re Req -> DATASRAM_re
-propagate : Move address from SAVE0_HADDR to SAVE1_HADDR.
-read      : Start read from DRAM.
-read_WS0  : ...have the read start from WS=0
+                                                                                                                                             If !hit & !db read DRAM[SAVE0_HADDR]+(8-SAVE0_WS).
 
+rd0
+rd1'
+rd1
+
+
+HREADYOUT:
+--		000 // Don't drive HREADYOUT.
+hit     100
+d!de    101
+d0      110
+d1      111
+
+
+Read DRAM:
+don't read              00
+read SAVE0_HADDR        01
+read SAVE1_HADDR        10
+read SAVE1_HADDR-WS     11
 .
 .
 .

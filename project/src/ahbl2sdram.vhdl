@@ -214,31 +214,32 @@ architecture cache of AHBL2SDRAM is
 
 	--{{{ Write FSM
 
-	signal write_request             : std_logic;
-	signal write_dram_busy           : std_logic;
-	signal hit                       : std_logic;
-    signal propargate_write_dram0    : std_logic;
-    signal write_dram1               : std_logic;
-    signal map_dram_busy_2_hreadyout : std_logic;
+	--signal write_request             : std_logic;
+	--signal write_dram_busy           : std_logic;
+	--signal hit                       : std_logic;
+    --signal propargate_write_dram0    : std_logic;
+    --signal write_dram1               : std_logic;
+    --signal map_dram_busy_2_hreadyout : std_logic;
 
-	component WRITE_FSM is
-	port (
-		CLK                                : in  std_logic; -- DCLK
-		RES_n                              : in  std_logic; -- HRESETn
-		REQUEST                            : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
-		DRAM_BUSY                          : in  std_logic; -- pX_cmd_full || pX_rd_empty
-		HIT                                : in  std_logic; -- The cache hit or miss information
+	--component WRITE_FSM is
+	--port (
+	--	CLK                                : in  std_logic; -- DCLK
+	--	RES_n                              : in  std_logic; -- HRESETn
+	--	REQUEST                            : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
+	--	DRAM_BUSY                          : in  std_logic; -- pX_cmd_full || pX_rd_empty
+	--	HIT                                : in  std_logic; -- The cache hit or miss information
 
-		-- Aways: If Request: save address and size to first register stage and read tag_ram[address]
-		PROPARGATE_WRITE_DRAM0             : out std_logic; -- Propagate address and size to second register stage and write dram[address in first reg stage]
-		WRITE_DRAM1                        : out std_logic; -- write dram[address in second reg stage]
-		MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
-        );
-	end component;
+	--	-- Aways: If Request: save address and size to first register stage and read tag_ram[address]
+	--	PROPARGATE_WRITE_DRAM0             : out std_logic; -- Propagate address and size to second register stage and write dram[address in first reg stage]
+	--	WRITE_DRAM1                        : out std_logic; -- write dram[address in second reg stage]
+	--	MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
+    --    );
+	--end component;
 	--}}}
 
 	--{{{ Read FSM
 
+	type read_fsm_state_type is ( idl_rdt, cmp_dlv, req0, req1, rd0, rd1_keep, rd1, rd2, rd3, rd4, rd5, rd6, rd7, sync);
 	--}}}
 
 begin
@@ -247,15 +248,15 @@ begin
 
 	ts: tag_sram    port map(clk => DCLK, en => tag_sram_en,  we => tag_sram_we,  addr => tag_sram_idx,  di => tag_sram_di,  do => tag_sram_do);
 	ds: data_sram   port map(clk => DCLK, en => data_sram_en, we => data_sram_we, addr => data_sram_idx, di => data_sram_di, do => data_sram_do);
-	w_fsm: WRITE_FSM port map(CLK => DCLK,
-	                          RES_n => HRESETn,
-	                          REQUEST => write_request,
-	                          DRAM_BUSY => write_dram_busy,
-	                          HIT => hit,
-	                          PROPARGATE_WRITE_DRAM0 => propargate_write_dram0,
-	                          WRITE_DRAM1 => write_dram1,
-	                          MAP_DRAM_BUSY_2_HREADYOUT => map_dram_busy_2_hreadyout
-	                          );
+	--w_fsm: WRITE_FSM port map(CLK => DCLK,
+	--                          RES_n => HRESETn,
+	--                          REQUEST => write_request,
+	--                          DRAM_BUSY => write_dram_busy,
+	--                          HIT => hit,
+	--                          PROPARGATE_WRITE_DRAM0 => propargate_write_dram0,
+	--                          WRITE_DRAM1 => write_dram1,
+	--                          MAP_DRAM_BUSY_2_HREADYOUT => map_dram_busy_2_hreadyout
+	--                          );
 	--}}}
 
 

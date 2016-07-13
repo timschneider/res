@@ -36,7 +36,6 @@ material[0-9]
 uebung[0-9][0-9].pdf
 
 # Temporary data in my workspace
-project/src/fsm/doc
 ARM_IHI0033A_AMBA_AHB-Lite_SPEC.pdf
 
 # My files
