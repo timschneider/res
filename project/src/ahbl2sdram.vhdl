@@ -35,23 +35,23 @@ entity AHBL2SDRAM is
 -- Memory Controller Interface {{{
 
 -- Command Path -------------------------------------------------------------------------------------------------------
+		pX_cmd_clk        : out std_logic;                     -- User clock for the command FIFO
+		pX_cmd_instr      : out std_logic_vector(2 downto 0);  -- Current instruction. 000: Wrtie, 001: Read, 010: Read w. precharge, 011: ...
 		pX_cmd_addr       : out std_logic_vector(29 downto 0); -- Byte start address for current transaction.
 		pX_cmd_bl         : out std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 indicates a burst of one word
-		pX_cmd_clk        : out std_logic;                     -- User clock for the command FIFO
-		pX_cmd_empty      : in  std_logic;                     -- Command FIFO empty bit: 0: Not empty, 1: Empty
 		pX_cmd_en         : out std_logic;                     -- Write enable for the command FIFO: 0: Diabled, 1: Enabled
+		pX_cmd_empty      : in  std_logic;                     -- Command FIFO empty bit: 0: Not empty, 1: Empty
 		pX_cmd_error      : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
 		pX_cmd_full       : in  std_logic;                     -- Command FIFO full bit: 0: Not full, 1: Full
-		pX_cmd_instr      : out std_logic_vector(2 downto 0);  -- Current instruction. 000: Wrtie, 001: Read, 010: Read w. precharge, 011: ...
 -- Write Datapath -----------------------------------------------------------------------------------------------------
 		pX_wr_clk         : out std_logic;                     -- Clock for the write data FIFO
-		pX_wr_count       : in  std_logic_vector( 6 downto 0); -- Write data FIFO fill level: 0: empty. Note longer latency than pX_wr_empty!
 		pX_wr_data        : out std_logic_vector(31 downto 0); -- Data to be stored in the FIFO and be written to the DDR2-DRAM.
-		pX_wr_empty       : in  std_logic;                     -- Write data FIFO empty bit: 0: Not empty, 1: Empty
+		pX_wr_mask        : out std_logic_vector(3 downto 0);  -- Mask write data. A high bit means Corresponding byte is not written to the RAM.
 		pX_wr_en          : out std_logic;                     -- Write enable for the write data FIFO
+		pX_wr_count       : in  std_logic_vector( 6 downto 0); -- Write data FIFO fill level: 0: empty. Note longer latency than pX_wr_empty!
+		pX_wr_empty       : in  std_logic;                     -- Write data FIFO empty bit: 0: Not empty, 1: Empty
 		pX_wr_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
 		pX_wr_full        : in  std_logic;                     -- Write data FIFO full bit: 0: Not full, 1: Full
-		pX_wr_mask        : out std_logic_vector(3 downto 0);  -- Mask write data. A high bit means Corresponding byte is not written to the RAM.
 		pX_wr_underrun    : in  std_logic;                     -- Underrun flag. 0: All ok, 1: Underrun. Last valid data is written repeatedly.
 -- Read Datapath ------------------------------------------------------------------------------------------------------
 		pX_rd_clk         : out std_logic;                     -- Clock for the read data FIFO
@@ -259,11 +259,25 @@ begin
 	--                          );
 	--}}}
 
-
 	--{{{ Common FSM signals
 
 	hit                       <= '1' after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns;
 	HREADYOUT                 <= not write_dram_busy after 1 ns when (map_dram_busy_2_hreadyout = '1') else '1' after 1 ns; -- TODO: Read FSM auch übernehmen.
+	--HRESP
+	--HRDATA
+	--pX_cmd_clk
+	--pX_cmd_instr
+	--pX_cmd_addr
+	--pX_cmd_bl
+	--pX_cmd_en
+
+	--pX_wr_clk
+	--pX_wr_data
+	--pX_wr_mask
+	--pX_wr_en
+
+	--pX_rd_clk
+	--pX_rd_en
 	--}}}
 
 	--{{{ Write FSM signals

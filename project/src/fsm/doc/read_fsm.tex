@@ -224,10 +224,11 @@
 \begin{tabular}{l | l}
 	Name & Description\\
 	\hline
-	req & foo\\
-	hit & bar\\
+	req & HSEL \&\& !HRWITE \&\& HREADY \\
+	hit & (TAGSRAM\_output[TAG] == SAVE0\_HADDR) \&\& TAGSRAM\_output[VALID]\\
 	db  & baz\\
 	de  & foobar\\
+	WS  & adsf\\
 \end{tabular}
 
 \end{document}
