@@ -126,7 +126,6 @@ begin
 					next_state       <= rd7 after 1 ns;
 				end if;
 			--}}}
-
 			when rd7 =>
 				if( DRAM_EMPTY = '1' ) then
 					next_state <= rd7 after 1 ns;

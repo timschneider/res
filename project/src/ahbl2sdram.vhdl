@@ -224,6 +224,11 @@ architecture cache of AHBL2SDRAM is
     --signal propargate_write_dram0    : std_logic;
     --signal write_dram1               : std_logic;
     --signal map_dram_busy_2_hreadyout : std_logic;
+
+
+	signal write_SAVE1_HADDR           : std_logic_vector(31 downto  0);
+	signal write_SAVE1_HWDATA          : std_logic_vector(31 downto  0);
+	signal write_SAVE1_HSIZE           : std_logic_vector( 2 downto  0);
 	signal write_current_state         : write_fsm_state_type;
 
 	--component WRITE_FSM is
@@ -244,6 +249,7 @@ architecture cache of AHBL2SDRAM is
 	--}}}
 
 	--{{{ Read FSM
+
 	signal read_request              : std_logic;
 	signal read_ws_zero              : std_logic;
 	signal read_current_state        : read_fsm_state_type;
@@ -273,10 +279,24 @@ architecture cache of AHBL2SDRAM is
 	--}}}
 
 	--{{{ Hit and Miss Registers for statistics
-		signal hit_counter  : unsigned (31 downto 0) := (others => '0');
-		signal miss_counter : unsigned (31 downto 0) := (others => '0');
+	signal hit_counter  : unsigned (31 downto 0) := (others => '0');
+	signal miss_counter : unsigned (31 downto 0) := (others => '0');
 	---}}}
 
+	--{{{ Helper functions
+
+	function HSIZE2pX_wr_mask (HSIZE : std_logic_vector(2 downto 0)) return std_logic_vector is
+	variable result: std_logic_vector(b'LENGTH-1 downto 0);
+	begin
+		for i in result'RANGE loop
+			case b(i) is
+				when '0' => result(i) := '0';
+				when '1' => result(i) := '1';
+			end case;
+		end loop;
+		return result;
+	end;
+	--}}}
 begin
 
 	--{{{ Port Maps
@@ -297,6 +317,9 @@ begin
 
 	--{{{ Common FSM signals
 
+	pX_cmd_clk <= DCLK;
+	pX_wr_clk  <= DCLK;
+	pX_rd_clk  <= DCLK;
 	--{{{
 	latch_bus : process(HCLK)
 	begin
@@ -312,63 +335,93 @@ begin
 	end process latch_bus;
 	--}}}
 
-	hit                       <= '1' after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns;
-	--HREADYOUT                 <= not write_dram_busy after 1 ns when (map_dram_busy_2_hreadyout = '1') else '1' after 1 ns; -- TODO: Read FSM auch übernehmen.
-	--HRESP
-	--HRDATA
-	pX_cmd_clk   <= DCLK;
-	pX_cmd_instr <= DRAM_CMD_READ  after 1 ns when ((read_current_state=cmp_dlv or read_current_state=req0 or read_current_state=req1) and hit='0') else
-	                DRAM_CMD_WRITE after 1 ns when ((write_current_state=cmp_sto or read_current_signal=wait_sto) else
-                    "---"          after 1 ns;
+	hit          <= '1'             after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns;
+	--{{{
+	HREADYOUT    <= '0'             after 1 ns when ((read_request and read_busy) or (write_request and write_busy)) else -- block all requests to busy FSMs.
+				    hit             after 1 ns when (read_current_state=cmp_dlv)                                     else
+					'0'             after 1 ns when (read_current_state=rg0 or read_current_state=rg1)               else
+					not pX_rd_empty after 1 ns when (read_current_state=rd0)                                         else
+					'1'             after 1 ns when (read_current_state=rd1_keep)                                    else
+					'1'             after 1 ns when (write_current_state=cmp_sto)                                    else
+					'1'             after 1 ns; -- Signal readiness on reset and all conditions where the cache is not not ready.
+	--}}}
+	HRESP        <= '0'; -- By design there are no errors introduced by this module :) TODO: Treat the Error bit from the DRAM controller
+	--{{{
+	HRDATA       <= data_sram_do        after 1 ns when (read_current_state=cmp_dlv) else
+					pX_rd_data          after 1 ns when (read_current_state=rd0)     else
+					read_keep_dram_data after 1 ns when (read_current_state=rd1_keep) else
+					(others => '-') after 1 ns;
+	--}}}
+	--{{{
+	pX_cmd_instr <= DRAM_CMD_READ   after 1 ns when ((read_current_state=cmp_dlv or read_current_state=req0 or read_current_state=req1) and hit='0') else
+	                DRAM_CMD_WRITE  after 1 ns when (write_current_state=cmp_sto or read_current_signal=wait_sto)                                    else
+					(others => '-') after 1 ns;
+	--}}}
+	--{{{
+	pX_cmd_addr  <= SAVE0_HADDR(31 downto 2)                                      after 1 ns when (read_current_state=cmp_dlv and hit='0') else
+	                read_SAVE1_HADDR(31 downto 2)                                 after 1 ns when (read_current_state=rq0)                 else
+	                read_SAVE1_HADDR(31 downto 5)&"000"                           after 1 ns when (read_current_state=rq1)                 else
+	                SAVE0_HADDR(31 downto 2)                                      after 1 ns when (write_current_state=cmp_sto)            else
+	                write_SAVE1_HADDR(31 downto 2)                                after 1 ns when (write_current_state=wait_sto)           else
+					(others => '-')                                               after 1 ns;
+	--}}}
+	--{{{
+	pX_cmd_bl    <= std_logic_vector(7 - unsigned(     SAVE0_HADDR( 4 downto 2))) after 1 ns when (read_current_state=cmp_dlv and hit='0') else
+	                std_logic_vector(7 - unsigned(read_SAVE1_HADDR( 4 downto 2))) after 1 ns when (read_current_state=rq0)                 else
+	                std_logic_vector(unsigned(read_SAVE1_HADDR( 4 downto 2)) - 1) after 1 ns when (read_current_state=rq1)                 else
+					(others => '0')                                               after 1 ns when (write_current_state=cmp_sto)            else
+	                (others => '0')                                               after 1 ns when (write_current_state=wait_sto)           else
+					(others => '-')                                               after 1 ns;
+	--}}}
+	--{{{
+	pX_cmd_en    <= '0' after 1 ns when pX_cmd_full else
+	                '1' after 1 ns when (read_current_state=cmp_dlv and hit='0')          or
+	                                    (read_current_state=rq0)                          or
+	                                    (read_current_state=rq1)                          or
+	                                    (write_current_state=cmp_sto  and not pX_wr_full) or
+	                                    (write_current_state=wait_sto and not pX_wr_full) else
+	                '0' after 1 ns;
+	--}}}
+	--{{{
+	pX_wr_data   <= HWDATA             after 1 ns when (write_current_state=cmp_sto) else
+					write_SAVE1_HWDATA after 1 ns when (write_current_state=wait_sto) else
+					(others => '-')    after 1 ns;
+	--}}}
 
-	 pX_cmd_addr               <= SAVE0_HADDR(31 downto 2)            after 1 ns when (read_current_state=cmp_dlv and hit='0') else
-	                              read_SAVE1_HADDR(31 downto 2)       after 1 ns when (read_current_state=rq0)                 else
-	                              read_SAVE1_HADDR(31 downto 5)&"000" after 1 ns when (read_current_state=rq1)                 else
-	                              SAVE0_HADDR(31 downto 2)            after 1 ns when (write_current_state=cmp_sto)            else
-	                              write_SAVE1_HADDR(31 downto 2)      after 1 ns when (write_current_state=wait_sto)           else
-	                              "------------------------------"    after 1 ns;
-	--pX_cmd_bl
-	--pX_cmd_en
-
-	pX_wr_clk    <= DCLK;
-	--pX_wr_data
 	--pX_wr_mask
 	--pX_wr_en
 
-	--pX_rd_clk
 	--pX_rd_en
 
-	tag_sram_clk              <= DCLK;
-	tag_sram_en
-	tag_sram_we
-	tag_sram_idx
-	tag_sram_di
+	-- tag_sram_en
+	-- tag_sram_we
+	-- tag_sram_idx
+	-- tag_sram_di
 
 
-	data_sram_clk             <= DCLK;
-	data_sram_en
-	data_sram_we
-	data_sram_idx
-	data_sram_di
+	-- data_sram_en
+	-- data_sram_we
+	-- data_sram_idx
+	-- data_sram_di
 
-	SAVE0_HADDR
-	SAVE0_HSIZE
-	SAVE1_HADDR
-	SAVE1_HSIZE
-
-	read_request               <= '1' after 1 ns when (HSEL = '1' and HWRITE = '0' and HREADY = '1') else '0' after 1 ns;
-	read_ws_zero
-	read_SAVE1_HADDR
-	read_SAVE1_HSIZE
-
-	read_current_state
+	-- SAVE0_HADDR
+	-- SAVE0_HSIZE
+	-- SAVE1_HADDR
+	-- SAVE1_HSIZE
 	--}}}
 
 	--{{{ Read FSM signals
 
 	read_request             <= HSEL and HREADY and not HWRITE after 1 ns;
+
+
+	--read_ws_zero
+	--read_SAVE1_HADDR
+	--read_SAVE1_HSIZE
+
+
 	--{{{
-	read_propage : process(DCLK)
+	read_propagate : process(DCLK)
 	begin
 		if(rising_edge(HCLK)) then
 			if(HRESETn = '1') then
@@ -379,12 +432,8 @@ begin
 				read_SAVE1_HSIZE <= SAVE0_HSIZE;
 			end if;
 		end if;
-	end process latch_bus;
+	end process read_propagate;
 	--}}}
-
-    -- propargate_write_dram0    : std_logic;
-    -- write_dram1               : std_logic;
-    -- map_dram_busy_2_hreadyout : std_logic;
 
 	--}}}
 
