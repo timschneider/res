@@ -5,7 +5,7 @@ use work.read_fsm_pkg.all;
 
 entity READ_FSM is
 	port (
-		CLK               : in  std_logic;                      -- 2xHCLK
+		DCLK               : in  std_logic;                      -- 2xHCLK
 		HCLK              : in  std_logic;
 		RES_n             : in  std_logic;                      -- HRESETn
 
@@ -132,7 +132,7 @@ begin
 					next_state <= rd7 after 1 ns;
 				else
 					if ( HCLK = '1' ) then -- First phase of HCLK
-						next_state <= sync after 1 ns;
+	 					next_state <= sync after 1 ns;
 					else -- HCLK = '0' -- Second phase of HCLK
 						if( REQUEST = '0' ) then
 							next_state <= idl_rdt after 1 ns;
@@ -161,9 +161,9 @@ begin
 	--}}}
 
 	--{{{
-	sp: process(CLK)
+	sp: process(DCLK)
 	begin
-		if(rising_edge(CLK)) then
+		if(rising_edge(DCLK)) then
 			if( RES_n = '1' ) then
 				current_state        <= idl_rdt;
 			else

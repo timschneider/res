@@ -1,5 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use work.read_fsm_pkg.all;
 --use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
@@ -16,7 +17,6 @@ entity AHBL2SDRAM is
 		HRESETn           : in  std_logic;                     -- Reset
 -- AHB Slave inputs ---------------------------------------------------------------------------------------------------
 		HSEL              : in  std_logic;                     -- Slave select
-
 		HADDR             : in  std_logic_vector(31 downto 0); -- Slave address
 		HWRITE            : in  std_logic;                     -- Diretion: 0: Master read, 1: Master write
 		HSIZE             : in  std_logic_vector( 2 downto 0); -- Transfer Word size: 000: Byte, 001: Halfword, 010: Word, others: undefined
@@ -199,24 +199,24 @@ architecture cache of AHBL2SDRAM is
 	alias  Save0_HADDR_INDEX       is HADDR(11 downto  5);
 	alias  Save0_HADDR_WORD_SELECT is HADDR( 4 downto  2);
 	alias  Save0_HADDR_BYTE_SELECT is HADDR( 1 downto  0);
-	signal SAVE0_MASK    : std_logic_vector( 3 downto  0);
-	--signal SAVE0_DATA   : std_logic_vector(31 downto 0);
+	signal SAVE0_HSIZE   : std_logic_vector( 2 downto  0);
 
-	signal SAVE1_HADDR   : std_logic_vector(31 downto  0);
-	alias  Save1_HADDR_NULLED      is HADDR(31 downto 24);
-	alias  Save1_HADDR_TAG         is HADDR(23 downto 12);
-	alias  Save1_HADDR_INDEX       is HADDR(11 downto  5);
-	alias  Save1_HADDR_WORD_SELECT is HADDR( 4 downto  2);
-	alias  Save1_HADDR_BYTE_SELECT is HADDR( 1 downto  0);
-	signal SAVE1_MASK    : std_logic_vector( 3 downto  0);
-	signal SAVE1_DATA    : std_logic_vector(31 downto  0);
+	signal hit                       : std_logic;
+
+	--signal SAVE1_HADDR   : std_logic_vector(31 downto  0);
+	--alias  Save1_HADDR_NULLED      is HADDR(31 downto 24);
+	--alias  Save1_HADDR_TAG         is HADDR(23 downto 12);
+	--alias  Save1_HADDR_INDEX       is HADDR(11 downto  5);
+	--alias  Save1_HADDR_WORD_SELECT is HADDR( 4 downto  2);
+	--alias  Save1_HADDR_BYTE_SELECT is HADDR( 1 downto  0);
+	--signal SAVE1_HSIZE   : std_logic_vector( 2 downto  0);
+	--signal SAVE1_DATA    : std_logic_vector(31 downto  0);
 	--}}}
 
 	--{{{ Write FSM
 
 	--signal write_request             : std_logic;
 	--signal write_dram_busy           : std_logic;
-	--signal hit                       : std_logic;
     --signal propargate_write_dram0    : std_logic;
     --signal write_dram1               : std_logic;
     --signal map_dram_busy_2_hreadyout : std_logic;
@@ -238,8 +238,31 @@ architecture cache of AHBL2SDRAM is
 	--}}}
 
 	--{{{ Read FSM
+	signal read_request              : std_logic;
+	signal read_dram_busy            : std_logic;
+	signal read_dram_empty           : std_logic;
+	signal read_ws_zero              : std_logic;
+	signal read_current_state        : read_fsm_state_type;
+	signal read_SAVE1_HADDR          : std_logic_vector(31 downto  0);
+	signal read_SAVE1_HSIZE          : std_logic_vector( 2 downto  0);
 
-	type read_fsm_state_type is ( idl_rdt, cmp_dlv, req0, req1, rd0, rd1_keep, rd1, rd2, rd3, rd4, rd5, rd6, rd7, sync);
+	component READ_FSM is
+	port (
+		DCLK              : in  std_logic;                      -- 2xHCLK
+		HCLK              : in  std_logic;
+		RES_n             : in  std_logic;                      -- HRESETn
+
+		-- The input signals to the state machine
+		REQUEST           : in  std_logic;                      -- !HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
+		HIT               : in  std_logic;                      -- The cache hit or miss information
+		DRAM_BUSY         : in  std_logic;                      -- pX_cmd_full
+	    DRAM_EMPTY        : in  std_logic;                      -- pX_rd_empty
+		WS_ZERO           : in  std_logic;                      -- Whether the requested word was the first in cache line
+
+		-- The state register
+		state             : out read_fsm_state_type
+         );
+	end component READ_FSM;
 	--}}}
 
 begin
@@ -278,6 +301,33 @@ begin
 
 	--pX_rd_clk
 	--pX_rd_en
+
+	tag_sram_clk
+	tag_sram_en
+	tag_sram_we
+	tag_sram_idx
+	tag_sram_di
+
+
+	data_sram_clk
+	data_sram_en
+	data_sram_we
+	data_sram_idx
+	data_sram_di
+
+	SAVE0_HADDR
+	SAVE0_HSIZE
+	SAVE1_HADDR
+	SAVE1_HSIZE
+
+	read_request
+	read_dram_busy
+	read_dram_empty
+	read_ws_zero
+	read_SAVE1_HADDR
+	read_SAVE1_HSIZE
+
+	read_current_state
 	--}}}
 
 	--{{{ Write FSM signals
