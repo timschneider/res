@@ -47,7 +47,7 @@ entity AHBL2SDRAM is
 -- Write Datapath -----------------------------------------------------------------------------------------------------
 		pX_wr_clk         : out std_logic;                     -- Clock for the write data FIFO
 		pX_wr_data        : out std_logic_vector(31 downto 0); -- Data to be stored in the FIFO and be written to the DDR2-DRAM.
-		pX_wr_mask        : out std_logic_vector(3 downto 0);  -- Mask write data. A high bit means Corresponding byte is not written to the RAM.
+		pX_wr_mask        : out std_logic_vector(3 downto 0);  -- Mask write data. A high bit means corresponding byte is not written to the RAM.
 		pX_wr_en          : out std_logic;                     -- Write enable for the write data FIFO
 		pX_wr_count       : in  std_logic_vector( 6 downto 0); -- Write data FIFO fill level: 0: empty. Note longer latency than pX_wr_empty!
 		pX_wr_empty       : in  std_logic;                     -- Write data FIFO empty bit: 0: Not empty, 1: Empty
@@ -285,16 +285,27 @@ architecture cache of AHBL2SDRAM is
 
 	--{{{ Helper functions
 
-	function HSIZE2pX_wr_mask (HSIZE : std_logic_vector(2 downto 0)) return std_logic_vector is
-	variable result: std_logic_vector(b'LENGTH-1 downto 0);
+	function HSIZE_2_write_mask (WS : std_logic_vector(1 downto 0); HSIZE : std_logic_vector(2 downto 0)) return std_logic_vector is
+	variable result: std_logic_vector(3 downto 0) := "1111";
+	variable real_size : unsigned;
 	begin
-		for i in result'RANGE loop
-			case b(i) is
-				when '0' => result(i) := '0';
-				when '1' => result(i) := '1';
-			end case;
+		if HSIZE = "000" then
+			real_size <= 1;
+		elsif HSIZE = "001" then
+			real_size <= 2;
+			assert (WS(0) = '0') report "Unaligned half word write." severity error;
+		elsif HSIZE = "010" then
+			real_size <= 4;
+			assert (WS = "00") report "Unaligned word write." severity error;
+		else
+		assert false report "Invalid HSIZE" severity error;
+			real_size <= 0; -- block all reads for bigger sizes
+		end if;
+
+		for i in unsigned(WS) to unsigned(WS)+real_size loop
+			result(i) <= '0';
 		end loop;
-		return result;
+	return result;
 	end;
 	--}}}
 begin
