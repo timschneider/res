@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use work.read_fsm_pkg.all;
---use ieee.numeric_std.all;
+use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
 
@@ -265,6 +265,11 @@ architecture cache of AHBL2SDRAM is
 	end component READ_FSM;
 	--}}}
 
+	--{{{ Hit and Miss Registers for statistics
+		signal hit_counter  : unsigned (31 downto 0) := (others => '0');
+		signal miss_counter : unsigned (31 downto 0) := (others => '0');
+	---}}}
+
 begin
 
 	--{{{ Port Maps
@@ -340,6 +345,16 @@ begin
     -- map_dram_busy_2_hreadyout : std_logic;
 
 	--}}}
+	-- hit counters
+	process(hit)
+	begin
+		-- add to hitcounter
+		if ( hit = '1') then 
+			hit_counter <= hit_counter + "1";
+		else
+			miss_counter <= miss_counter + "1";
+		end if;
+	end process;
 
 end cache;
 --}}}
