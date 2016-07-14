@@ -9,11 +9,20 @@
 
  entity TAG_SRAM is
      port (clk  : in std_logic;
-           en   : in std_logic;
-           we   : in std_logic;
-           addr : in std_logic_vector( 9 downto 0);
-           di   : in std_logic_vector(15 downto 0);
-           do   : out std_logic_vector(15 downto 0));
+           -- Port A
+           en_A   : in std_logic;
+           we_A   : in std_logic;
+           addr_A : in std_logic_vector( 9 downto 0);
+           di_A   : in std_logic_vector(15 downto 0);
+           do_A   : out std_logic_vector(15 downto 0);
+
+           -- Port B
+           en_B   : in std_logic;
+           we_B   : in std_logic;
+           addr_B : in std_logic_vector( 9 downto 0);
+           di_B   : in std_logic_vector(15 downto 0);
+           do_B   : out std_logic_vector(15 downto 0)
+    );
  end TAG_SRAM;
 
  architecture syn of TAG_SRAM is
@@ -23,14 +32,26 @@
      process (clk)
      begin
          if clk'event and clk = '1' then
-             if en = '1' then
-                 if we = '1' then
-                     -- RAM(conv_integer(addr)) <= di;
-                     RAM(to_integer(unsigned(addr))) <= di;
-                     do <= di;
+             if en_A = '1' then
+                 if we_A = '1' then
+                     RAM(to_integer(unsigned(addr_A))) <= di_A;
+                     do_A <= di_A;
                  else
-                     --do <= RAM( conv_integer(addr));
-                     do <= RAM(to_integer(unsigned(addr)));
+                     do_A <= RAM(to_integer(unsigned(addr_A)));
+                 end if;
+             end if;
+         end if;
+     end process;
+
+     process (clk)
+     begin
+         if clk'event and clk = '1' then
+             if en_B = '1' then
+                 if we_B = '1' then
+                     RAM(to_integer(unsigned(addr_B))) <= di_B;
+                     do_B <= di_B;
+                 else
+                     do_B <= RAM(to_integer(unsigned(addr_B)));
                  end if;
              end if;
          end if;
