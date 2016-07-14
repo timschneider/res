@@ -84,9 +84,9 @@ architecture cache of AHBL2SDRAM is
 
 	alias HADDR_NULLED      is HADDR(31 downto 24);
 	alias HADDR_TAG         is HADDR(23 downto 12);
-	alias HADDR_INDEX       is HADDR(11 downto  5);
-	alias HADDR_WORD_SELECT is HADDR( 4 downto  2);
-	alias HADDR_BYTE_SELECT is HADDR( 1 downto  0);
+	alias HADDR_IDX         is HADDR(11 downto  5);
+	alias HADDR_WS          is HADDR( 4 downto  2);
+	alias HADDR_BS          is HADDR( 1 downto  0);
 	--}}}
 
 	--{{{ DRAM Aliases
@@ -226,10 +226,11 @@ architecture cache of AHBL2SDRAM is
     --signal map_dram_busy_2_hreadyout : std_logic;
 
 
-	signal write_SAVE1_HADDR           : std_logic_vector(31 downto  0);
-	signal write_SAVE1_HWDATA          : std_logic_vector(31 downto  0);
-	signal write_SAVE1_HSIZE           : std_logic_vector( 2 downto  0);
-	signal write_current_state         : write_fsm_state_type;
+	signal write_SAVE1_HADDR           :  std_logic_vector(31 downto  0);
+	alias  write_SAVE1_HADDR_BS        is write_SAVE1_HADDR( 1 downto 0);
+	signal write_SAVE1_HWDATA          :  std_logic_vector(31 downto  0);
+	signal write_SAVE1_HSIZE           :  std_logic_vector( 2 downto  0);
+	signal write_current_state         :  write_fsm_state_type;
 
 	--component WRITE_FSM is
 	--port (
@@ -250,12 +251,13 @@ architecture cache of AHBL2SDRAM is
 
 	--{{{ Read FSM
 
-	signal read_request              : std_logic;
-	signal read_ws_zero              : std_logic;
-	signal read_current_state        : read_fsm_state_type;
-	signal read_SAVE1_HADDR          : std_logic_vector(31 downto  0);
-	signal read_SAVE1_HSIZE          : std_logic_vector( 2 downto  0);
-	signal read_keep_dram_data       : std_logic_vector(31 downto  0);
+	signal read_request              :  std_logic;
+	signal read_ws_zero              :  std_logic;
+	signal read_current_state        :  read_fsm_state_type;
+	signal read_SAVE1_HADDR          :  std_logic_vector(31 downto  0);
+	alias  read_SAVE1_HADDR_WS       is read_SAVE1_HADDR( 4 downto  2);
+	signal read_SAVE1_HSIZE          :  std_logic_vector( 2 downto  0);
+	signal read_keep_dram_data       :  std_logic_vector(31 downto  0);
 
 	component READ_FSM is
 	port (
@@ -285,7 +287,7 @@ architecture cache of AHBL2SDRAM is
 
 	--{{{ Helper functions
 
-	function HSIZE_2_write_mask (WS : std_logic_vector(1 downto 0); HSIZE : std_logic_vector(2 downto 0)) return std_logic_vector is
+	function write_mask (BS : std_logic_vector(1 downto 0); HSIZE : std_logic_vector(2 downto 0)) return std_logic_vector is
 	variable result: std_logic_vector(3 downto 0) := "1111";
 	variable real_size : unsigned;
 	begin
@@ -293,16 +295,16 @@ architecture cache of AHBL2SDRAM is
 			real_size <= 1;
 		elsif HSIZE = "001" then
 			real_size <= 2;
-			assert (WS(0) = '0') report "Unaligned half word write." severity error;
+			assert (BS(0) = '0') report "Unaligned half word write." severity error;
 		elsif HSIZE = "010" then
 			real_size <= 4;
-			assert (WS = "00") report "Unaligned word write." severity error;
+			assert (BS = "00") report "Unaligned word write." severity error;
 		else
 		assert false report "Invalid HSIZE" severity error;
 			real_size <= 0; -- block all reads for bigger sizes
 		end if;
 
-		for i in unsigned(WS) to unsigned(WS)+real_size loop
+		for i in unsigned(BS) to unsigned(BS)+real_size loop
 			result(i) <= '0';
 		end loop;
 	return result;
@@ -331,6 +333,8 @@ begin
 	pX_cmd_clk <= DCLK;
 	pX_wr_clk  <= DCLK;
 	pX_rd_clk  <= DCLK;
+	hit          <= '1' after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns; -- TODO: Verfify if this is correct.
+	HRESP        <= '0'; -- By design there are no errors introduced by this module :) TODO: Treat the Error bit from the DRAM controller
 	--{{{
 	latch_bus : process(HCLK)
 	begin
@@ -346,7 +350,6 @@ begin
 	end process latch_bus;
 	--}}}
 
-	hit          <= '1'             after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns;
 	--{{{
 	HREADYOUT    <= '0'             after 1 ns when ((read_request and read_busy) or (write_request and write_busy)) else -- block all requests to busy FSMs.
 				    hit             after 1 ns when (read_current_state=cmp_dlv)                                     else
@@ -356,7 +359,6 @@ begin
 					'1'             after 1 ns when (write_current_state=cmp_sto)                                    else
 					'1'             after 1 ns; -- Signal readiness on reset and all conditions where the cache is not not ready.
 	--}}}
-	HRESP        <= '0'; -- By design there are no errors introduced by this module :) TODO: Treat the Error bit from the DRAM controller
 	--{{{
 	HRDATA       <= data_sram_do        after 1 ns when (read_current_state=cmp_dlv) else
 					pX_rd_data          after 1 ns when (read_current_state=rd0)     else
@@ -398,15 +400,30 @@ begin
 					write_SAVE1_HWDATA after 1 ns when (write_current_state=wait_sto) else
 					(others => '-')    after 1 ns;
 	--}}}
+	--{{{
+	pX_wr_mask   <= write_mask(HADDR_BS, HSIZE) after 1 ns when (write_current_state=cmp_sto) else
+					write_mask(write_SAVE1_HADDR_BS, write_SAVE1_HSIZE) after 1 ns when (write_current_state=wait_sto) else
+					(others => '-')_  after 1 ns;
+	--}}}
+	--{{{
+	pX_wr_en     <= '1' after 1 ns when ((write_current_state=cmp_sto or write_current_state=wait_sto) and not pX_wr_full) else
+					'0' after 1 ns;
+	--}}}
+	--{{{
+	pX_rd_en     <= '0' after 1 ns when pX_rd_empty else
+					'1' after 1 ns when ((read_current_state=rd0) or (read_current_state=rd1_keep) or (read_current_state=rd1) or
+	                                     (read_current_state=rd2) or (read_current_state=rd3) or (read_current_state=rd4) or
+										 (read_current_state=rd5) or (read_current_state=rd6) or (read_current_state=rd7)) else
+					'0' after 1 ns;
 
-	--pX_wr_mask
-	--pX_wr_en
+	--}}}
 
-	--pX_rd_en
 
-	-- tag_sram_en
+	tag_sram_en  <= '0' after 1 ns when (not HSEL or not HREADY) else -- Don't read without a request
+					'1' after 1 ns when (read_current_state=idl_rdt or write_current_state=idl_rdt) else
+					'0' after 1 ns;
 	-- tag_sram_we
-	-- tag_sram_idx
+	tag_sram_idx <= HADDR_IDX;
 	-- tag_sram_di
 
 
@@ -415,20 +432,18 @@ begin
 	-- data_sram_idx
 	-- data_sram_di
 
-	-- SAVE0_HADDR
-	-- SAVE0_HSIZE
-	-- SAVE1_HADDR
-	-- SAVE1_HSIZE
 	--}}}
 
 	--{{{ Read FSM signals
 
-	read_request             <= HSEL and HREADY and not HWRITE after 1 ns;
+	read_request <= HSEL and HREADY and not HWRITE after 1 ns;
+	--{{{
+	read_ws_zero <= '1' after 1 ns when (read_current_state=cmp_dlv and HADDR_WS = "00") else
+					'1' after 1 ns when (read_current_state=req0 and read_SAVE1_HADDR_WS = "00") else
+					'0' after 1 ns;
+	--}}}
 
 
-	--read_ws_zero
-	--read_SAVE1_HADDR
-	--read_SAVE1_HSIZE
 
 
 	--{{{
@@ -453,13 +468,26 @@ begin
 	write_request             <= HWRITE and HREADY and HSEL after 1 ns;
 	write_dram_busy           <= pX_cmd_full or pX_rd_empty after 1 ns;
 
-    -- propargate_write_dram0    : std_logic;
-    -- write_dram1               : std_logic;
-    -- map_dram_busy_2_hreadyout : std_logic;
+	--{{{
+	write_propagate : process(DCLK)
+	begin
+		if(rising_edge(HCLK)) then
+			if(HRESETn = '1') then
+				write_SAVE1_HADDR <= std_logic_vector(0);
+				write_SAVE1_HSIZE <= std_logic_vector(0);
+				write_SAVE1_DATA  <= std_logic_vector(0);
+			elsif ( write_current_state = cmp_sto ) then
+				write_SAVE1_HADDR <= SAVE0_HADDR;
+				write_SAVE1_HSIZE <= SAVE0_HSIZE;
+				write_SAVE1_DATA  <= HWDATA;
+			end if;
+		end if;
+	end process read_propagate;
+	--}}}
 
 	--}}}
 
-	-- hit counters
+	--{{{ hit counters
 	process(hit)
 	begin
 		-- add to hitcounter
@@ -469,6 +497,7 @@ begin
 			miss_counter <= miss_counter + "1";
 		end if;
 	end process;
+	--}}}
 
 end cache;
 --}}}
