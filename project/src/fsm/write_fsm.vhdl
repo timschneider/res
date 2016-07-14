@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.write_fsm_pkg.all;
 --use ieee.std_logic_unsigned.all;
 
 entity WRITE_FSM is

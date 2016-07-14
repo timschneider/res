@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use work.read_fsm_pkg.all;
+use work.write_fsm_pkg.all;
 use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
@@ -76,7 +77,7 @@ architecture cache of AHBL2SDRAM is
 
 	--{{{ Address Format:
 
-	-- 31       23           1l      4   1  |
+	-- 31       23           1l      4   1  0
 	-- |00000000|XXXXXXXXXXXX|XXXXXXX|XXX|XX|
 	-- |00000000|TAG         |INDEX  |WS |BS|
 	-- |8       |12          |7      |3  |2 |
@@ -92,62 +93,65 @@ architecture cache of AHBL2SDRAM is
 
 	--{{{ DRAM Command Path Aliases
 
-	constant CMD_BL_1                      : std_logic_vector( 5 downto 0) := "000000";
-	constant CMD_BL_2                      : std_logic_vector( 5 downto 0) := "000001";
-	constant CMD_BL_3                      : std_logic_vector( 5 downto 0) := "000010";
-	constant CMD_BL_4                      : std_logic_vector( 5 downto 0) := "000011";
-	constant CMD_BL_5                      : std_logic_vector( 5 downto 0) := "000100";
-	constant CMD_BL_6                      : std_logic_vector( 5 downto 0) := "000101";
-	constant CMD_BL_7                      : std_logic_vector( 5 downto 0) := "000110";
-	constant CMD_BL_8                      : std_logic_vector( 5 downto 0) := "000111";
-	constant CMD_EMPTY                     : std_logic                     := '1';
-	constant CMD_NOT_EMPTY                 : std_logic                     := '0';
-	constant CMD_ENABLE                    : std_logic                     := '1';
-	constant CMD_DISABLE                   : std_logic                     := '0';
-	constant CMD_ERROR                     : std_logic                     := '1';
-	constant CMD_NO_ERROR                  : std_logic                     := '0';
-	constant CMD_FULL                      : std_logic                     := '1';
-	constant CMD_NOT_FULL                  : std_logic                     := '0';
-	constant CMD_WRITE                     : std_logic_vector( 2 downto 0) := "000";
-	constant CMD_READ                      : std_logic_vector( 2 downto 0) := "001";
-	constant CMD_WRITE_WITH_AUTO_PRECHARGE : std_logic_vector( 2 downto 0) := "010";
-	constant CMD_READ_WITH_AUTO_PRECHARGE  : std_logic_vector( 2 downto 0) := "011";
-	constant CMD_REFRESH                   : std_logic_vector( 2 downto 0) := "100";
+	constant DRAM_CMD_BL_1                      : std_logic_vector( 5 downto 0) := "000000";
+	constant DRAM_CMD_BL_2                      : std_logic_vector( 5 downto 0) := "000001";
+	constant DRAM_CMD_BL_3                      : std_logic_vector( 5 downto 0) := "000010";
+	constant DRAM_CMD_BL_4                      : std_logic_vector( 5 downto 0) := "000011";
+	constant DRAM_CMD_BL_5                      : std_logic_vector( 5 downto 0) := "000100";
+	constant DRAM_CMD_BL_6                      : std_logic_vector( 5 downto 0) := "000101";
+	constant DRAM_CMD_BL_7                      : std_logic_vector( 5 downto 0) := "000110";
+	constant DRAM_CMD_BL_8                      : std_logic_vector( 5 downto 0) := "000111";
+	constant DRAM_CMD_EMPTY                     : std_logic                     := '1';
+	constant DRAM_CMD_NOT_EMPTY                 : std_logic                     := '0';
+	constant DRAM_CMD_ENABLE                    : std_logic                     := '1';
+	constant DRAM_CMD_DISABLE                   : std_logic                     := '0';
+	constant DRAM_CMD_ERROR                     : std_logic                     := '1';
+	constant DRAM_CMD_NO_ERROR                  : std_logic                     := '0';
+	constant DRAM_CMD_FULL                      : std_logic                     := '1';
+	constant DRAM_CMD_NOT_FULL                  : std_logic                     := '0';
+	-- constant DRAM_CMD_WRITE                     : std_logic_vector( 2 downto 0) := "000";
+	-- constant DRAM_CMD_READ                      : std_logic_vector( 2 downto 0) := "001";
+	-- constant DRAM_CMD_WRITE_WITH_AUTO_PRECHARGE : std_logic_vector( 2 downto 0) := "010";
+	-- constant DRAM_CMD_READ_WITH_AUTO_PRECHARGE  : std_logic_vector( 2 downto 0) := "011";
+	-- constant DRAM_CMD_REFRESH                   : std_logic_vector( 2 downto 0) := "100";
+
+	constant DRAM_CMD_WRITE                     : std_logic_vector( 2 downto 0) := "000";
+	constant DRAM_CMD_READ                      : std_logic_vector( 2 downto 0) := "001";
 	--}}}
 
 	--{{{ DRAM Write Path Aliases
 
-	constant WRITE_EMPTY                   : std_logic                     := '1';
-	constant WRITE_NOT_EMPTY               : std_logic                     := '0';
-	constant WRITE_ENABLE                  : std_logic                     := '1';
-	constant WRITE_DISABLE                 : std_logic                     := '0';
-	constant WRITE_ERROR                   : std_logic                     := '1';
-	constant WRITE_NO_ERROR                : std_logic                     := '0';
-	constant WRITE_FULL                    : std_logic                     := '1';
-	constant WRITE_NOT_FULL                : std_logic                     := '0';
-	constant WRITE_BYTE_0_MASK             : std_logic_vector( 3 downto 0) := "1110";
-	constant WRITE_BYTE_1_MASK             : std_logic_vector( 3 downto 0) := "1101";
-	constant WRITE_BYTE_2_MASK             : std_logic_vector( 3 downto 0) := "1011";
-	constant WRITE_BYTE_3_MASK             : std_logic_vector( 3 downto 0) := "0111";
-	constant WRITE_LOW_HALFWORD_MASK       : std_logic_vector( 3 downto 0) := "1100";
-	constant WRITE_HIGH_HALFWORD_MASK      : std_logic_vector( 3 downto 0) := "0011";
-	constant WRITE_WORD_MASK               : std_logic_vector( 3 downto 0) := "0000";
-	constant WRITE_UNDERRUN                : std_logic                     := '1';
-	constant WRITE_NO_UNDERRUN             : std_logic                     := '0';
+	constant DRAM_WRITE_EMPTY                   : std_logic                     := '1';
+	constant DRAM_WRITE_NOT_EMPTY               : std_logic                     := '0';
+	constant DRAM_WRITE_ENABLE                  : std_logic                     := '1';
+	constant DRAM_WRITE_DISABLE                 : std_logic                     := '0';
+	constant DRAM_WRITE_ERROR                   : std_logic                     := '1';
+	constant DRAM_WRITE_NO_ERROR                : std_logic                     := '0';
+	constant DRAM_WRITE_FULL                    : std_logic                     := '1';
+	constant DRAM_WRITE_NOT_FULL                : std_logic                     := '0';
+	constant DRAM_WRITE_BYTE_0_MASK             : std_logic_vector( 3 downto 0) := "1110";
+	constant DRAM_WRITE_BYTE_1_MASK             : std_logic_vector( 3 downto 0) := "1101";
+	constant DRAM_WRITE_BYTE_2_MASK             : std_logic_vector( 3 downto 0) := "1011";
+	constant DRAM_WRITE_BYTE_3_MASK             : std_logic_vector( 3 downto 0) := "0111";
+	constant DRAM_WRITE_LOW_HALFWORD_MASK       : std_logic_vector( 3 downto 0) := "1100";
+	constant DRAM_WRITE_HIGH_HALFWORD_MASK      : std_logic_vector( 3 downto 0) := "0011";
+	constant DRAM_WRITE_WORD_MASK               : std_logic_vector( 3 downto 0) := "0000";
+	constant DRAM_WRITE_UNDERRUN                : std_logic                     := '1';
+	constant DRAM_WRITE_NO_UNDERRUN             : std_logic                     := '0';
 	--}}}
 
 	--{{{ DRAM Read Path Aliases
 
-	constant READ_ENABLE                   : std_logic                     := '1';
-	constant READ_DISABLE                  : std_logic                     := '0';
-	constant READ_FULL                     : std_logic                     := '1';
-	constant READ_NOT_FULL                 : std_logic                     := '0';
-	constant READ_EMPTY                    : std_logic                     := '1';
-	constant READ_NOT_EMPTY                : std_logic                     := '0';
-	constant READ_OVERFLOW                 : std_logic                     := '1';
-	constant READ_NO_OVERFLOW              : std_logic                     := '0';
-	constant READ_ERROR                    : std_logic                     := '1';
-	constant READ_NO_ERROR                 : std_logic                     := '0';
+	constant DRAM_READ_ENABLE                   : std_logic                     := '1';
+	constant DRAM_READ_DISABLE                  : std_logic                     := '0';
+	constant DRAM_READ_FULL                     : std_logic                     := '1';
+	constant DRAM_READ_NOT_FULL                 : std_logic                     := '0';
+	constant DRAM_READ_EMPTY                    : std_logic                     := '1';
+	constant DRAM_READ_NOT_EMPTY                : std_logic                     := '0';
+	constant DRAM_READ_OVERFLOW                 : std_logic                     := '1';
+	constant DRAM_READ_NO_OVERFLOW              : std_logic                     := '0';
+	constant DRAM_READ_ERROR                    : std_logic                     := '1';
+	constant DRAM_READ_NO_ERROR                 : std_logic                     := '0';
 	--}}}
 
 	--}}}
@@ -220,6 +224,7 @@ architecture cache of AHBL2SDRAM is
     --signal propargate_write_dram0    : std_logic;
     --signal write_dram1               : std_logic;
     --signal map_dram_busy_2_hreadyout : std_logic;
+	signal write_current_state         : write_fsm_state_type;
 
 	--component WRITE_FSM is
 	--port (
@@ -235,16 +240,16 @@ architecture cache of AHBL2SDRAM is
 	--	MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
     --    );
 	--end component;
+	--signal write_write_dram                : std_logic;
 	--}}}
 
 	--{{{ Read FSM
 	signal read_request              : std_logic;
-	signal read_dram_busy            : std_logic;
-	signal read_dram_empty           : std_logic;
 	signal read_ws_zero              : std_logic;
 	signal read_current_state        : read_fsm_state_type;
 	signal read_SAVE1_HADDR          : std_logic_vector(31 downto  0);
 	signal read_SAVE1_HSIZE          : std_logic_vector( 2 downto  0);
+	signal read_keep_dram_data       : std_logic_vector(31 downto  0);
 
 	component READ_FSM is
 	port (
@@ -263,6 +268,8 @@ architecture cache of AHBL2SDRAM is
 		state             : out read_fsm_state_type
          );
 	end component READ_FSM;
+	--signal read_read_dram            : std_logic;
+	--signal read_read_dram_addr       : std_logic_vector(29 downto 0);
 	--}}}
 
 	--{{{ Hit and Miss Registers for statistics
@@ -276,6 +283,7 @@ begin
 
 	ts: tag_sram    port map(clk => DCLK, en => tag_sram_en,  we => tag_sram_we,  addr => tag_sram_idx,  di => tag_sram_di,  do => tag_sram_do);
 	ds: data_sram   port map(clk => DCLK, en => data_sram_en, we => data_sram_we, addr => data_sram_idx, di => data_sram_di, do => data_sram_do);
+	r_fsm: read_fsm port map(dclk => DCLK, hclk => HCLK, res_n => HRESETn, request => read_request, hit => hit, dram_busy => pX_cmd_full, dram_empty = pX_rd_empty, ws_zero => read_ws_zero, state => read_current_state);
 	--w_fsm: WRITE_FSM port map(CLK => DCLK,
 	--                          RES_n => HRESETn,
 	--                          REQUEST => write_request,
@@ -289,17 +297,40 @@ begin
 
 	--{{{ Common FSM signals
 
+	--{{{
+	latch_bus : process(HCLK)
+	begin
+		if(rising_edge(HCLK)) then
+			if(HRESETn = '1') then
+				SAVE0_HADDR <= std_logic_vector(0);
+				SAVE0_HSIZE <= std_logic_vector(0);
+			elsif ( HSEL = '1' and HREADY = '1' ) then
+				SAVE0_HADDR <= HADDR;
+				SAVE0_HSIZE <= HSIZE;
+			end if;
+		end if;
+	end process latch_bus;
+	--}}}
+
 	hit                       <= '1' after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns;
-	HREADYOUT                 <= not write_dram_busy after 1 ns when (map_dram_busy_2_hreadyout = '1') else '1' after 1 ns; -- TODO: Read FSM auch übernehmen.
+	--HREADYOUT                 <= not write_dram_busy after 1 ns when (map_dram_busy_2_hreadyout = '1') else '1' after 1 ns; -- TODO: Read FSM auch übernehmen.
 	--HRESP
 	--HRDATA
-	--pX_cmd_clk
-	--pX_cmd_instr
-	--pX_cmd_addr
+	pX_cmd_clk   <= DCLK;
+	pX_cmd_instr <= DRAM_CMD_READ  after 1 ns when ((read_current_state=cmp_dlv or read_current_state=req0 or read_current_state=req1) and hit='0') else
+	                DRAM_CMD_WRITE after 1 ns when ((write_current_state=cmp_sto or read_current_signal=wait_sto) else
+                    "---"          after 1 ns;
+
+	 pX_cmd_addr               <= SAVE0_HADDR(31 downto 2)            after 1 ns when (read_current_state=cmp_dlv and hit='0') else
+	                              read_SAVE1_HADDR(31 downto 2)       after 1 ns when (read_current_state=rq0)                 else
+	                              read_SAVE1_HADDR(31 downto 5)&"000" after 1 ns when (read_current_state=rq1)                 else
+	                              SAVE0_HADDR(31 downto 2)            after 1 ns when (write_current_state=cmp_sto)            else
+	                              write_SAVE1_HADDR(31 downto 2)      after 1 ns when (write_current_state=wait_sto)           else
+	                              "------------------------------"    after 1 ns;
 	--pX_cmd_bl
 	--pX_cmd_en
 
-	--pX_wr_clk
+	pX_wr_clk    <= DCLK;
 	--pX_wr_data
 	--pX_wr_mask
 	--pX_wr_en
@@ -307,14 +338,14 @@ begin
 	--pX_rd_clk
 	--pX_rd_en
 
-	tag_sram_clk
+	tag_sram_clk              <= DCLK;
 	tag_sram_en
 	tag_sram_we
 	tag_sram_idx
 	tag_sram_di
 
 
-	data_sram_clk
+	data_sram_clk             <= DCLK;
 	data_sram_en
 	data_sram_we
 	data_sram_idx
@@ -325,14 +356,36 @@ begin
 	SAVE1_HADDR
 	SAVE1_HSIZE
 
-	read_request
-	read_dram_busy
-	read_dram_empty
+	read_request               <= '1' after 1 ns when (HSEL = '1' and HWRITE = '0' and HREADY = '1') else '0' after 1 ns;
 	read_ws_zero
 	read_SAVE1_HADDR
 	read_SAVE1_HSIZE
 
 	read_current_state
+	--}}}
+
+	--{{{ Read FSM signals
+
+	read_request             <= HSEL and HREADY and not HWRITE after 1 ns;
+	--{{{
+	read_propage : process(DCLK)
+	begin
+		if(rising_edge(HCLK)) then
+			if(HRESETn = '1') then
+				read_SAVE1_HADDR <= std_logic_vector(0);
+				read_SAVE1_HSIZE <= std_logic_vector(0);
+			elsif ( read_current_state = cmp_dlv ) then
+				read_SAVE1_HADDR <= SAVE0_HADDR;
+				read_SAVE1_HSIZE <= SAVE0_HSIZE;
+			end if;
+		end if;
+	end process latch_bus;
+	--}}}
+
+    -- propargate_write_dram0    : std_logic;
+    -- write_dram1               : std_logic;
+    -- map_dram_busy_2_hreadyout : std_logic;
+
 	--}}}
 
 	--{{{ Write FSM signals
@@ -345,6 +398,7 @@ begin
     -- map_dram_busy_2_hreadyout : std_logic;
 
 	--}}}
+
 	-- hit counters
 	process(hit)
 	begin
