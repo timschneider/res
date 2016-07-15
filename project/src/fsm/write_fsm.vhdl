@@ -51,7 +51,7 @@ begin
 					next_state <= wait_sto after 1 ns;
 				else
 					if ( HCLK = '1' ) then -- First phase of HCLK
-	 					next_state <= sync after 1 ns;
+						next_state <= sync after 1 ns;
 					else -- HCLK = '0' -- Second phase of HCLK
 						if( REQUEST = '0' ) then
 							next_state <= idl_rdt after 1 ns;
