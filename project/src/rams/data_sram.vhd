@@ -8,22 +8,22 @@ use ieee.numeric_std.all;
 --use ieee.std_logic_unsigned.all;
 
 entity DATA_SRAM is
-    port (clk            : in std_logic;
+    port (clk       : in  std_logic;
           -- Port A
-          en_A           : in std_logic;
-          we_A           : in std_logic;
-          addr_A         : in std_logic_vector(9 downto 0);
-          di_A           : in std_logic_vector(31 downto 0);
-          pX_wr_mask_A   : in std_logic_vector(3 downto 0);
-          do_A           : out std_logic_vector(31 downto 0);
+          en_A      : in  std_logic;
+          we_A      : in  std_logic;
+          addr_A    : in  std_logic_vector( 9 downto 0);
+          di_A      : in  std_logic_vector(31 downto 0);
+          wr_mask_A : in  std_logic_vector( 3 downto 0);
+          do_A      : out std_logic_vector(31 downto 0);
 
           -- Port B
-          en_B           : in std_logic;
-          we_B           : in std_logic;
-          addr_B         : in std_logic_vector(9 downto 0);
-          di_B           : in std_logic_vector(31 downto 0);
-          pX_wr_mask_B   : in std_logic_vector(3 downto 0);
-          do_B           : out std_logic_vector(31 downto 0)
+          en_B      : in  std_logic;
+          we_B      : in  std_logic;
+          addr_B    : in  std_logic_vector( 9 downto 0);
+          di_B      : in  std_logic_vector(31 downto 0);
+          wr_mask_B : in  std_logic_vector( 3 downto 0);
+          do_B      : out std_logic_vector(31 downto 0)
     );
 end DATA_SRAM;
 
@@ -40,7 +40,7 @@ begin
                 if we_A = '1' then
                     -- RAM(conv_integer(addr_A)) <= di_A;
                     for i in 0 to 3 loop
-                        if pX_wr_mask_A(i) = '1' then
+                        if wr_mask_A(i) = '1' then
                             RAM(to_integer(unsigned(addr_A)))((i+1)*8 downto (i*8)) <= di_A((i+1)*8 downto (i*8));
                         end if;
                     end loop;
@@ -61,7 +61,7 @@ begin
                 if we_B = '1' then
                     -- RAM(conv_integer(addr_B)) <= di_B;
                     for i in 0 to 3 loop
-                        if pX_wr_mask_B(i) = '1' then
+                        if wr_mask_B(i) = '1' then
                             RAM(to_integer(unsigned(addr_B)))((i+1)*8 downto (i*8)) <= di_B((i+1)*8 downto (i*8));
                         end if;
                     end loop;

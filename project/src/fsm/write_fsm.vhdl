@@ -6,80 +6,79 @@ use work.write_fsm_pkg.all;
 
 entity WRITE_FSM is
 	port (
-		CLK                                : in  std_logic; -- HCLK or QCLK
-		RES_n                              : in  std_logic; -- HRESETn
-		REQUEST                            : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
-		DRAM_BUSY                          : in  std_logic; -- pX_cmd_full || pX_rd_empty
-		HIT                                : in  std_logic; -- The cache hit or miss information
+		DCLK      : in  std_logic; -- 2xHCLK
+		RES_n     : in  std_logic; -- HRESETn
 
-		-- Aways: If Request: save address and size to first register stage and read tag_ram[address]
-		PROPARGATE_WRITE_DRAM0             : out std_logic; -- Propagate address and size to second register stage and write dram[address in first reg stage]
-		WRITE_DRAM1                        : out std_logic; -- write dram[address in second reg stage]
-		MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
+		-- The input variables to the state machine
+		REQUEST   : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
+		DRAM_BUSY : in  std_logic; -- pX_cmd_full || pX_rd_empty
+		HIT       : in  std_logic; -- The cache hit or miss information
+		HCLK      : in  std_logic; -- HCLK
+
+		-- The state register
+		state     : out write_fsm_state_type
         );
 end WRITE_FSM;
 
 architecture syn of WRITE_FSM is
 
-	--{{{ States: s_idle, s_tag, s_wait
 
-	--       State                                  Encoding    Condition   -> Next State   Description
-	constant s_idle : std_logic_vector(2 downto 0) := "000"; -- REQUEST     -> s_tag    Wait for request, if request read TAG SRAM...
-
-	constant s_tag  : std_logic_vector(2 downto 0) := "101"; -- dram_bysy   -> s_wait   Compare tag from TAG SRAM with address tag bits,
-			                                                 -- REQUEST     -> s_tag    ...write data to DRAM and tie HREADYOUT to DRAM_CMD_FULL.
-			                                                 -- !REQUEST    -> s_idle   ...When HIT, update DATA SRAM with new value.
-	                                                         -- NOTE: Use this state to increase HIT/MISS counters, eg: if state == s_tag && hit -> hitcount++
-
-	constant s_wait : std_logic_vector(2 downto 0) := "011"; -- dram_bysy   -> s_wait   Wait until the DRAM FIFO interface has space and write...
-	                                                         -- REQUEST     -> s_tag    ...the data.
-                                                             -- !REQUEST    -> s_idle
-	-- Note: In FPGAs all FlipFlops are at zero after reset
-	--}}}
-
-	signal current_state,         next_state        : std_logic_vector(2 downto 0) := s_idle;
+	signal current_state, next_state : write_fsm_state_type := idl_rdt;
 
 begin
 	--{{{
-	calculate_next_state: process(current_state, REQUEST, HIT, DRAM_BUSY)
+	calculate_next_state: process(current_state, REQUEST, HIT, DRAM_BUSY, HCLK)
 	begin
 		next_state        <= current_state        after 1 ns; -- default assignement
 
 		case current_state is
-			when s_idle =>
+			when idl_rdt =>
 				if( REQUEST = '1' ) then
-					next_state        <= s_tag after 1 ns;
+					next_state        <= cmp_sto after 1 ns;
 				end if;
 
-			when s_tag =>
+			when cmp_sto =>
 				if( dram_busy = '1' ) then
-					next_state <= s_wait after 1 ns;
+					next_state <= wait_sto after 1 ns;
 				elsif( REQUEST = '1' ) then
-					next_state <= s_tag after 1 ns;
+					next_state <= cmp_sto after 1 ns;
 				else
-					next_state <= s_idle after 1 ns;
+					next_state <= idl_rdt after 1 ns;
 				end if;
 
-			when s_wait =>
+			when wait_sto =>
 				if( dram_busy = '1' ) then
-					next_state <= s_wait after 1 ns;
-				elsif( REQUEST = '1' ) then
-					next_state <= s_tag after 1 ns;
-				else -- Cache miss
-					next_state <= s_idle after 1 ns;
+					next_state <= wait_sto after 1 ns;
+				else
+					if ( HCLK = '1' ) then -- First phase of HCLK
+	 					next_state <= sync after 1 ns;
+					else -- HCLK = '0' -- Second phase of HCLK
+						if( REQUEST = '0' ) then
+							next_state <= idl_rdt after 1 ns;
+						else
+							next_state <= cmp_sto after 1 ns;
+						end if;
+					end if;
+				end if;
+
+			when sync =>
+				if ( REQUEST = '0' ) then
+					next_state <= idl_rdt after 1 ns;
+				else -- REQUEST = '1'
+					next_state <= cmp_sto after 1 ns;
 				end if;
 
 			when others =>
 				-- shouldn't happen
 				assert true report "Write FSM has encountered an invalid state" severity failure;
-				next_state <= s_idle after 1 ns;
+				next_state <= idl_rdt after 1 ns;
 		end case;
 
 	end process;
 	--}}}
 
 	--{{{
-	adopt_next_state: process(CLK)
+	adopt_next_state: process(DCLK)
 	begin
 		if(rising_edge(CLK)) then
 			if( RES_n = '1' ) then
@@ -89,12 +88,5 @@ begin
 			end if;
 		end if;
 	end process;
-	--}}}
-
-	--{{{ Assign output
-
-	PROPARGATE_WRITE_DRAM0    <= current_state(2);
-	WRITE_DRAM1               <= current_state(1);
-	MAP_DRAM_BUSY_2_HREADYOUT <= current_state(0);
 	--}}}
 end syn;

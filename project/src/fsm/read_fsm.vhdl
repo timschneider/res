@@ -6,7 +6,6 @@ use work.read_fsm_pkg.all;
 entity READ_FSM is
 	port (
 		DCLK               : in  std_logic;                      -- 2xHCLK
-		HCLK              : in  std_logic;
 		RES_n             : in  std_logic;                      -- HRESETn
 
 		-- The input signals to the state machine
@@ -15,6 +14,7 @@ entity READ_FSM is
 		DRAM_BUSY         : in  std_logic;                      -- pX_cmd_full
 	    DRAM_EMPTY        : in  std_logic;                      -- pX_rd_empty
 		WS_ZERO           : in  std_logic;                      -- Whether the requested word was the first in cache line
+		HCLK              : in  std_logic;
 
 		-- The state register
 		state             : out read_fsm_state_type
@@ -22,10 +22,10 @@ entity READ_FSM is
 end READ_FSM;
 
 architecture syn of READ_FSM is
-	signal current_state,         next_state        : read_fsm_state_type := idl_rdt;
+	signal current_state, next_state : read_fsm_state_type := idl_rdt;
 begin
 	--{{{
-	next_state_logic: process(current_state, REQUEST, HIT, DRAM_BUSY, DRAM_EMPTY)
+	calculate_next_state: process(current_state, REQUEST, HIT, DRAM_BUSY, DRAM_EMPTY, HCLK)
 	begin
 		next_state        <= current_state        after 1 ns; -- default assignement
 
@@ -160,7 +160,7 @@ begin
 	--}}}
 
 	--{{{
-	sp: process(DCLK)
+	adopt_next_state: process(DCLK)
 	begin
 		if(rising_edge(DCLK)) then
 			if( RES_n = '1' ) then

@@ -89,110 +89,83 @@ architecture cache of AHBL2SDRAM is
 	alias HADDR_BS          is HADDR( 1 downto  0);
 	--}}}
 
-	--{{{ DRAM Aliases
-
-	--{{{ DRAM Command Path Aliases
-
-	constant DRAM_CMD_BL_1                      : std_logic_vector( 5 downto 0) := "000000";
-	constant DRAM_CMD_BL_2                      : std_logic_vector( 5 downto 0) := "000001";
-	constant DRAM_CMD_BL_3                      : std_logic_vector( 5 downto 0) := "000010";
-	constant DRAM_CMD_BL_4                      : std_logic_vector( 5 downto 0) := "000011";
-	constant DRAM_CMD_BL_5                      : std_logic_vector( 5 downto 0) := "000100";
-	constant DRAM_CMD_BL_6                      : std_logic_vector( 5 downto 0) := "000101";
-	constant DRAM_CMD_BL_7                      : std_logic_vector( 5 downto 0) := "000110";
-	constant DRAM_CMD_BL_8                      : std_logic_vector( 5 downto 0) := "000111";
-	constant DRAM_CMD_EMPTY                     : std_logic                     := '1';
-	constant DRAM_CMD_NOT_EMPTY                 : std_logic                     := '0';
-	constant DRAM_CMD_ENABLE                    : std_logic                     := '1';
-	constant DRAM_CMD_DISABLE                   : std_logic                     := '0';
-	constant DRAM_CMD_ERROR                     : std_logic                     := '1';
-	constant DRAM_CMD_NO_ERROR                  : std_logic                     := '0';
-	constant DRAM_CMD_FULL                      : std_logic                     := '1';
-	constant DRAM_CMD_NOT_FULL                  : std_logic                     := '0';
-	-- constant DRAM_CMD_WRITE                     : std_logic_vector( 2 downto 0) := "000";
-	-- constant DRAM_CMD_READ                      : std_logic_vector( 2 downto 0) := "001";
-	-- constant DRAM_CMD_WRITE_WITH_AUTO_PRECHARGE : std_logic_vector( 2 downto 0) := "010";
-	-- constant DRAM_CMD_READ_WITH_AUTO_PRECHARGE  : std_logic_vector( 2 downto 0) := "011";
-	-- constant DRAM_CMD_REFRESH                   : std_logic_vector( 2 downto 0) := "100";
-
-	constant DRAM_CMD_WRITE                     : std_logic_vector( 2 downto 0) := "000";
-	constant DRAM_CMD_READ                      : std_logic_vector( 2 downto 0) := "001";
-	--}}}
-
-	--{{{ DRAM Write Path Aliases
-
-	constant DRAM_WRITE_EMPTY                   : std_logic                     := '1';
-	constant DRAM_WRITE_NOT_EMPTY               : std_logic                     := '0';
-	constant DRAM_WRITE_ENABLE                  : std_logic                     := '1';
-	constant DRAM_WRITE_DISABLE                 : std_logic                     := '0';
-	constant DRAM_WRITE_ERROR                   : std_logic                     := '1';
-	constant DRAM_WRITE_NO_ERROR                : std_logic                     := '0';
-	constant DRAM_WRITE_FULL                    : std_logic                     := '1';
-	constant DRAM_WRITE_NOT_FULL                : std_logic                     := '0';
-	constant DRAM_WRITE_BYTE_0_MASK             : std_logic_vector( 3 downto 0) := "1110";
-	constant DRAM_WRITE_BYTE_1_MASK             : std_logic_vector( 3 downto 0) := "1101";
-	constant DRAM_WRITE_BYTE_2_MASK             : std_logic_vector( 3 downto 0) := "1011";
-	constant DRAM_WRITE_BYTE_3_MASK             : std_logic_vector( 3 downto 0) := "0111";
-	constant DRAM_WRITE_LOW_HALFWORD_MASK       : std_logic_vector( 3 downto 0) := "1100";
-	constant DRAM_WRITE_HIGH_HALFWORD_MASK      : std_logic_vector( 3 downto 0) := "0011";
-	constant DRAM_WRITE_WORD_MASK               : std_logic_vector( 3 downto 0) := "0000";
-	constant DRAM_WRITE_UNDERRUN                : std_logic                     := '1';
-	constant DRAM_WRITE_NO_UNDERRUN             : std_logic                     := '0';
-	--}}}
-
-	--{{{ DRAM Read Path Aliases
-
-	constant DRAM_READ_ENABLE                   : std_logic                     := '1';
-	constant DRAM_READ_DISABLE                  : std_logic                     := '0';
-	constant DRAM_READ_FULL                     : std_logic                     := '1';
-	constant DRAM_READ_NOT_FULL                 : std_logic                     := '0';
-	constant DRAM_READ_EMPTY                    : std_logic                     := '1';
-	constant DRAM_READ_NOT_EMPTY                : std_logic                     := '0';
-	constant DRAM_READ_OVERFLOW                 : std_logic                     := '1';
-	constant DRAM_READ_NO_OVERFLOW              : std_logic                     := '0';
-	constant DRAM_READ_ERROR                    : std_logic                     := '1';
-	constant DRAM_READ_NO_ERROR                 : std_logic                     := '0';
-	--}}}
-
-	--}}}
 
 	--{{{ Tag SRAM:
 
-	signal tag_sram_en   : std_logic;
-	signal tag_sram_we   : std_logic;
-	signal tag_sram_idx  : std_logic_vector( 9 downto 0);
-	signal tag_sram_do   : std_logic_vector(15 downto 0);
-	alias  tag_sram_do_tag   is tag_sram_do(11 downto 0);
-	alias  tag_sram_do_valid is tag_sram_do(         12);
-	alias  tag_sram_do_busy  is tag_sram_do(         13);
-	signal tag_sram_di   : std_logic_vector(15 downto 0);
+	signal tag_sram_a_en       :  std_logic;
+	--signal tag_sram_a_we       :  std_logic;
+	signal tag_sram_a_idx      :  std_logic_vector( 9 downto 0);
+	--signal tag_sram_a_di       :  std_logic_vector(15 downto 0);
+	signal tag_sram_a_do       :  std_logic_vector(15 downto 0);
+	alias  tag_sram_do_tag     is tag_sram_a_do(   11 downto 0);
+	alias  tag_sram_a_do_valid is tag_sram_a_do(            12);
+	alias  tag_sram_a_do_busy  is tag_sram_a_do(            13);
 
-	component tag_sram
+	signal tag_sram_b_en       :  std_logic;
+	--signal tag_sram_b_we       :  std_logic;
+	signal tag_sram_b_idx      :  std_logic_vector( 9 downto 0);
+	signal tag_sram_b_di       :  std_logic_vector(15 downto 0);
+	--signal tag_sram_b_do       :  std_logic_vector(15 downto 0);
+
+	component TAG_SRAM is
 		port (clk  : in std_logic;
-		      en   : in std_logic;
-		      we   : in std_logic;
-		      addr : in std_logic_vector(9 downto 0);
-		      di   : in std_logic_vector(15 downto 0);
-		      do   : out std_logic_vector(15 downto 0));
-	end component;
+		   -- Port A
+			  en_A   : in std_logic;
+			  we_A   : in std_logic;
+			  addr_A : in std_logic_vector( 9 downto 0);
+			  di_A   : in std_logic_vector(15 downto 0);
+			  do_A   : out std_logic_vector(15 downto 0);
+
+		   -- Port B
+			  en_B   : in std_logic;
+			  we_B   : in std_logic;
+			  addr_B : in std_logic_vector( 9 downto 0);
+			  di_B   : in std_logic_vector(15 downto 0);
+			  do_B   : out std_logic_vector(15 downto 0)
+		  );
+	end component TAG_SRAM;
+
+
+
+
+
 	--}}}
 
 	--{{{ Data SRAM:
 
-	signal data_sram_en         : std_logic;
-	signal data_sram_we         : std_logic;
-	signal data_sram_idx        : std_logic_vector(9 downto 0);
-	signal data_sram_di         : std_logic_vector(31 downto 0);
-	signal data_sram_do         : std_logic_vector(31 downto 0);
+	signal data_sram_a_en         : std_logic;
+	--signal data_sram_a_we         : std_logic;
+	signal data_sram_a_mask    : std_logic_vector( 3 downto 0);
+	signal data_sram_a_idx        : std_logic_vector( 9 downto 0);
+	signal data_sram_a_di         : std_logic_vector(31 downto 0);
+	--signal data_sram_a_do         : std_logic_vector(31 downto 0);
 
-	component data_sram is
-		port (clk  : in std_logic;
-		      en   : in std_logic;
-		      we   : in std_logic;
-		      addr : in std_logic_vector(9 downto 0);
-		      di   : in std_logic_vector(31 downto 0);
-		      do   : out std_logic_vector(31 downto 0));
-	end component;
+	signal data_sram_b_en         : std_logic;
+	signal data_sram_b_we         : std_logic;
+	signal data_sram_b_mask    : std_logic_vector( 3 downto 0);
+	signal data_sram_b_idx        : std_logic_vector( 9 downto 0);
+	signal data_sram_b_di         : std_logic_vector(31 downto 0);
+	signal data_sram_b_do         : std_logic_vector(31 downto 0);
+
+	component DATA_SRAM is
+		port (clk       : in  std_logic;
+		  -- Port A
+			  en_A      : in  std_logic;
+			  we_A      : in  std_logic;
+			  addr_A    : in  std_logic_vector( 9 downto 0);
+			  di_A      : in  std_logic_vector(31 downto 0);
+			  wr_mask_A : in  std_logic_vector( 3 downto 0);
+			  do_A      : out std_logic_vector(31 downto 0);
+
+		  -- Port B
+			  en_B      : in  std_logic;
+			  we_B      : in  std_logic;
+			  addr_B    : in  std_logic_vector( 9 downto 0);
+			  di_B      : in  std_logic_vector(31 downto 0);
+			  wr_mask_B : in  std_logic_vector( 3 downto 0);
+			  do_B      : out std_logic_vector(31 downto 0)
+		  );
+	end component DATA_SRAM;
 	--}}}
 
 	--{{{ Address and Data save registers
@@ -207,46 +180,34 @@ architecture cache of AHBL2SDRAM is
 
 	signal hit                       : std_logic;
 
-	--signal SAVE1_HADDR   : std_logic_vector(31 downto  0);
-	--alias  Save1_HADDR_NULLED      is HADDR(31 downto 24);
-	--alias  Save1_HADDR_TAG         is HADDR(23 downto 12);
-	--alias  Save1_HADDR_INDEX       is HADDR(11 downto  5);
-	--alias  Save1_HADDR_WORD_SELECT is HADDR( 4 downto  2);
-	--alias  Save1_HADDR_BYTE_SELECT is HADDR( 1 downto  0);
-	--signal SAVE1_HSIZE   : std_logic_vector( 2 downto  0);
-	--signal SAVE1_DATA    : std_logic_vector(31 downto  0);
 	--}}}
 
 	--{{{ Write FSM
 
-	--signal write_request             : std_logic;
-	--signal write_dram_busy           : std_logic;
-    --signal propargate_write_dram0    : std_logic;
-    --signal write_dram1               : std_logic;
-    --signal map_dram_busy_2_hreadyout : std_logic;
+	signal write_request             :  std_logic;
+	signal write_dram_busy           :  std_logic;
+	signal write_current_state       :  write_fsm_state_type;
 
+	signal write_SAVE1_HADDR         :  std_logic_vector(31 downto  0);
+	alias  write_SAVE1_HADDR_BS      is write_SAVE1_HADDR( 1 downto 0);
+	signal write_SAVE1_HWDATA        :  std_logic_vector(31 downto  0);
+	signal write_SAVE1_HSIZE         :  std_logic_vector( 2 downto  0);
 
-	signal write_SAVE1_HADDR           :  std_logic_vector(31 downto  0);
-	alias  write_SAVE1_HADDR_BS        is write_SAVE1_HADDR( 1 downto 0);
-	signal write_SAVE1_HWDATA          :  std_logic_vector(31 downto  0);
-	signal write_SAVE1_HSIZE           :  std_logic_vector( 2 downto  0);
-	signal write_current_state         :  write_fsm_state_type;
+	component WRITE_FSM is
+		port (
+				 DCLK      : in  std_logic; -- 2xHCLK
+				 RES_n     : in  std_logic; -- HRESETn
 
-	--component WRITE_FSM is
-	--port (
-	--	CLK                                : in  std_logic; -- DCLK
-	--	RES_n                              : in  std_logic; -- HRESETn
-	--	REQUEST                            : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
-	--	DRAM_BUSY                          : in  std_logic; -- pX_cmd_full || pX_rd_empty
-	--	HIT                                : in  std_logic; -- The cache hit or miss information
+		-- The input variables to the state machine
+				 REQUEST   : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
+				 DRAM_BUSY : in  std_logic; -- pX_cmd_full || pX_rd_empty
+				 HIT       : in  std_logic; -- The cache hit or miss information
+				 HCLK      : in  std_logic; -- HCLK
 
-	--	-- Aways: If Request: save address and size to first register stage and read tag_ram[address]
-	--	PROPARGATE_WRITE_DRAM0             : out std_logic; -- Propagate address and size to second register stage and write dram[address in first reg stage]
-	--	WRITE_DRAM1                        : out std_logic; -- write dram[address in second reg stage]
-	--	MAP_DRAM_BUSY_2_HREADYOUT          : out std_logic  -- Connect hreadyout to not dram_busy
-    --    );
-	--end component;
-	--signal write_write_dram                : std_logic;
+		-- The state register
+				 state     : out write_fsm_state_type
+			 );
+	end WRITE_FSM;
 	--}}}
 
 	--{{{ Read FSM
@@ -254,6 +215,7 @@ architecture cache of AHBL2SDRAM is
 	signal read_request              :  std_logic;
 	signal read_ws_zero              :  std_logic;
 	signal read_current_state        :  read_fsm_state_type;
+
 	signal read_SAVE1_HADDR          :  std_logic_vector(31 downto  0);
 	alias  read_SAVE1_HADDR_WS       is read_SAVE1_HADDR( 4 downto  2);
 	signal read_SAVE1_HSIZE          :  std_logic_vector( 2 downto  0);
@@ -262,7 +224,6 @@ architecture cache of AHBL2SDRAM is
 	component READ_FSM is
 	port (
 		DCLK              : in  std_logic;                      -- 2xHCLK
-		HCLK              : in  std_logic;
 		RES_n             : in  std_logic;                      -- HRESETn
 
 		-- The input signals to the state machine
@@ -271,6 +232,7 @@ architecture cache of AHBL2SDRAM is
 		DRAM_BUSY         : in  std_logic;                      -- pX_cmd_full
 	    DRAM_EMPTY        : in  std_logic;                      -- pX_rd_empty
 		WS_ZERO           : in  std_logic;                      -- Whether the requested word was the first in cache line
+		HCLK              : in  std_logic;
 
 		-- The state register
 		state             : out read_fsm_state_type
@@ -314,18 +276,35 @@ begin
 
 	--{{{ Port Maps
 
-	ts: tag_sram    port map(clk => DCLK, en => tag_sram_en,  we => tag_sram_we,  addr => tag_sram_idx,  di => tag_sram_di,  do => tag_sram_do);
-	ds: data_sram   port map(clk => DCLK, en => data_sram_en, we => data_sram_we, addr => data_sram_idx, di => data_sram_di, do => data_sram_do);
-	r_fsm: read_fsm port map(dclk => DCLK, hclk => HCLK, res_n => HRESETn, request => read_request, hit => hit, dram_busy => pX_cmd_full, dram_empty = pX_rd_empty, ws_zero => read_ws_zero, state => read_current_state);
-	--w_fsm: WRITE_FSM port map(CLK => DCLK,
-	--                          RES_n => HRESETn,
-	--                          REQUEST => write_request,
-	--                          DRAM_BUSY => write_dram_busy,
-	--                          HIT => hit,
-	--                          PROPARGATE_WRITE_DRAM0 => propargate_write_dram0,
-	--                          WRITE_DRAM1 => write_dram1,
-	--                          MAP_DRAM_BUSY_2_HREADYOUT => map_dram_busy_2_hreadyout
-	--                          );
+	ts : tag_sram port map ( clk => DCLK,
+		-- Port A
+			en_A    => tag_sram_a_en, we_A    => '0', addr_A  => tag_sram_a_idx, di_A    => (others => '-'), do_A    => tag_sram_a_do,
+		-- Port B
+			en_B    => tag_sram_b_en, we_B    => tag_sram_b_en, addr_B  => tag_sram_b_idx, di_B    => tag_sram_b_di, do_B    => open
+		);
+
+	ds : DATA_SRAM port map (clk => DCLK,
+		-- Port A
+			en_A => data_sram_a_en; we_A      => data_sram_a_en; addr_A => data_sram_a_en;
+			di_A => data_sram_a_di; wr_mask_A => data_sram_a_mask; do_A => open;
+		-- Port B
+			en_B => data_sram_b_en; we_B      => data_sram_b_we; addr_B => data_sram_b_addr;
+			di_B => data_sram_b_di; wr_mask_B => "0000";           do_B => data_sram_b_do;
+		);
+
+	w_fsm:  WRITE_FSM port map (dclk => DCLK; res_n => HRESETn;
+		-- The input variables to the state machine
+			REQUEST   => write_request; DRAM_BUSY => write_dram_busy; HIT       => HIT; HCLK      => HCLK;
+		-- The state register
+			state     => write_current_state;
+			);
+
+	r_fsm : read_fsm port map(dclk => DCLK, res_n => HRESETn, 
+		-- The input variables to the state machine
+			request => read_request, hit => hit, dram_busy => pX_cmd_full, dram_empty = pX_rd_empty, ws_zero => read_ws_zero, hclk => HCLK,
+		-- The state register
+			state => read_current_state
+		);
 	--}}}
 
 	--{{{ Common FSM signals
@@ -333,7 +312,7 @@ begin
 	pX_cmd_clk <= DCLK;
 	pX_wr_clk  <= DCLK;
 	pX_rd_clk  <= DCLK;
-	hit          <= '1' after 1 ns when (tag_sram_do_tag = save0_haddr_tag) else '0' after 1 ns; -- TODO: Verfify if this is correct.
+	hit          <= '1' after 1 ns when ((tag_sram_a_do_tag = save0_haddr_tag) and tag_sram_a_do_valid) else '0' after 1 ns; -- TODO: Verfify if this is correct.
 	HRESP        <= '0'; -- By design there are no errors introduced by this module :) TODO: Treat the Error bit from the DRAM controller
 	--{{{
 	latch_bus : process(HCLK)
@@ -403,7 +382,7 @@ begin
 	--{{{
 	pX_wr_mask   <= write_mask(HADDR_BS, HSIZE) after 1 ns when (write_current_state=cmp_sto) else
 					write_mask(write_SAVE1_HADDR_BS, write_SAVE1_HSIZE) after 1 ns when (write_current_state=wait_sto) else
-					(others => '-')_  after 1 ns;
+					(others => '-')  after 1 ns;
 	--}}}
 	--{{{
 	pX_wr_en     <= '1' after 1 ns when ((write_current_state=cmp_sto or write_current_state=wait_sto) and not pX_wr_full) else
@@ -419,11 +398,11 @@ begin
 	--}}}
 
 
-	tag_sram_en  <= '0' after 1 ns when (not HSEL or not HREADY) else -- Don't read without a request
+	tag_sram_a_en  <= '0' after 1 ns when (not HSEL or not HREADY) else -- Don't read without a request
 					'1' after 1 ns when (read_current_state=idl_rdt or write_current_state=idl_rdt) else
 					'0' after 1 ns;
-	-- tag_sram_we
-	tag_sram_idx <= HADDR_IDX;
+	--tag_sram_b_we
+	tag_sram_a_idx <= HADDR_IDX;
 	-- tag_sram_di
 
 
@@ -482,7 +461,7 @@ begin
 				write_SAVE1_DATA  <= HWDATA;
 			end if;
 		end if;
-	end process read_propagate;
+	end process write_propagate;
 	--}}}
 
 	--}}}
@@ -491,7 +470,7 @@ begin
 	process(hit)
 	begin
 		-- add to hitcounter
-		if ( hit = '1') then 
+		if ( hit = '1') then
 			hit_counter <= hit_counter + "1";
 		else
 			miss_counter <= miss_counter + "1";

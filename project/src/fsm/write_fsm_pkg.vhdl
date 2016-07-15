@@ -1,5 +1,5 @@
 package write_fsm_pkg is
-	type write_fsm_state_type is ( idl_rdt, cmp_sto, wait_sto);
+	type write_fsm_state_type is ( idl_rdt, cmp_sto, wait_sto, sync);
 end package write_fsm_pkg;
 
 --package body write_fsm_pkg is
