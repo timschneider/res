@@ -66,9 +66,6 @@ entity AHBL2SDRAM is
 
 -- Double speed internal clock
 		DCLK              : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
-
--- Quadruple speed internal clock
---		QCLK              : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
 end AHBL2SDRAM;
 
 
@@ -105,7 +102,6 @@ architecture cache of AHBL2SDRAM is
 	signal tag_sram_a_do       :  std_logic_vector(15 downto 0);
 	alias  tag_sram_a_do_tag   is tag_sram_a_do(   11 downto 0);
 	alias  tag_sram_a_do_valid is tag_sram_a_do(            12);
-	alias  tag_sram_a_do_busy  is tag_sram_a_do(            13);
 
 	signal tag_sram_b_en       :  std_logic;
 	--signal tag_sram_b_we       :  std_logic;
@@ -143,7 +139,7 @@ architecture cache of AHBL2SDRAM is
 
 	signal data_sram_b_en         : std_logic;
 	signal data_sram_b_we         : std_logic;
-	signal data_sram_b_mask    : std_logic_vector( 3 downto 0);
+	--signal data_sram_b_mask    : std_logic_vector( 3 downto 0);
 	signal data_sram_b_idx        : std_logic_vector( 9 downto 0);
 	signal data_sram_b_di         : std_logic_vector(31 downto 0);
 	signal data_sram_b_do         : std_logic_vector(31 downto 0);
@@ -174,9 +170,9 @@ architecture cache of AHBL2SDRAM is
 	signal SAVE0_HADDR   : std_logic_vector(31 downto  0);
 	alias  Save0_HADDR_NULLED      is HADDR(31 downto 24);
 	alias  Save0_HADDR_TAG         is HADDR(23 downto 12);
-	alias  Save0_HADDR_INDEX       is HADDR(11 downto  5);
-	alias  Save0_HADDR_WORD_SELECT is HADDR( 4 downto  2);
-	alias  Save0_HADDR_BYTE_SELECT is HADDR( 1 downto  0);
+	alias  Save0_HADDR_IDX         is HADDR(11 downto  5);
+	alias  Save0_HADDR_WS          is HADDR( 4 downto  2);
+	alias  Save0_HADDR_BS          is HADDR( 1 downto  0);
 	signal SAVE0_HSIZE   : std_logic_vector( 2 downto  0);
 
 	signal hit                       : std_logic;
@@ -189,11 +185,13 @@ architecture cache of AHBL2SDRAM is
 	signal write_dram_busy           :  std_logic;
 	signal write_current_state       :  write_fsm_state_type;
 
-	signal write_SAVE1_HADDR         :  std_logic_vector(31 downto  0);
-	alias  write_SAVE1_HADDR_BS      is write_SAVE1_HADDR( 1 downto 0);
-	signal write_SAVE1_HWDATA        :  std_logic_vector(31 downto  0);
-	signal write_SAVE1_HSIZE         :  std_logic_vector( 2 downto  0);
-	signal write_busy                 :  std_logic; -- TODO: Assign this
+	signal write_SAVE1_HADDR         :   std_logic_vector(31 downto  0);
+	alias  write_SAVE1_HADDR_TAG     is write_SAVE1_HADDR(23 downto 12);
+	alias  write_SAVE1_HADDR_IDX     is write_SAVE1_HADDR(11 downto  5);
+	alias  write_SAVE1_HADDR_BS      is write_SAVE1_HADDR( 1 downto  0);
+	signal write_SAVE1_HWDATA        :   std_logic_vector(31 downto  0);
+	signal write_SAVE1_HSIZE         :   std_logic_vector( 2 downto  0);
+	signal write_busy                :   std_logic;
 
 	component WRITE_FSM is
 		port (
@@ -222,7 +220,7 @@ architecture cache of AHBL2SDRAM is
 	alias  read_SAVE1_HADDR_WS       is read_SAVE1_HADDR( 4 downto  2);
 	signal read_SAVE1_HSIZE          :  std_logic_vector( 2 downto  0);
 	signal read_keep_dram_data       :  std_logic_vector(31 downto  0);
-	signal read_busy                 :  std_logic; -- TODO: Assign this
+	signal read_busy                 :  std_logic;
 
 	component READ_FSM is
 	port (
@@ -275,48 +273,70 @@ architecture cache of AHBL2SDRAM is
 	return result;
 	end;
 	--}}}
+
 begin
 
 	--{{{ Port Maps
 
 	ts : tag_sram port map ( clk => DCLK,
-		-- Port A
-			en_A    => tag_sram_a_en, we_A    => '0', addr_A  => tag_sram_a_idx, di_A    => (others => '-'), do_A    => tag_sram_a_do,
-		-- Port B
-			en_B    => tag_sram_b_en, we_B    => tag_sram_b_en, addr_B  => tag_sram_b_idx, di_B    => tag_sram_b_di, do_B    => open
+			en_A => tag_sram_a_en, we_A => '0',           addr_A => tag_sram_a_idx, di_A => (others => '-'), do_A => tag_sram_a_do, -- Port A
+			en_B => tag_sram_b_en, we_B => tag_sram_b_en, addr_B => tag_sram_b_idx, di_B => tag_sram_b_di,   do_B => open           -- Port B
 		);
 
 	ds : DATA_SRAM port map (clk => DCLK,
-		-- Port A
-			en_A => data_sram_a_en, we_A      => data_sram_a_en,   addr_A => data_sram_a_idx,
+			en_A => data_sram_a_en, we_A      => data_sram_a_en,   addr_A => data_sram_a_idx, -- Port A
 			di_A => data_sram_a_di, wr_mask_A => data_sram_a_mask, do_A   => open,
-		-- Port B
-			en_B => data_sram_b_en, we_B      => data_sram_b_we,   addr_B => data_sram_b_idx,
+			en_B => data_sram_b_en, we_B      => data_sram_b_we,   addr_B => data_sram_b_idx, -- Port B
 			di_B => data_sram_b_di, wr_mask_B => "0000",           do_B   => data_sram_b_do
 		);
 
 	w_fsm:  WRITE_FSM port map (dclk => DCLK, res_n => HRESETn,
-		-- The input variables to the state machine
-			REQUEST => write_request, DRAM_BUSY => write_dram_busy, HIT => HIT, HCLK => HCLK,
-		-- The state register
-			state   => write_current_state
+			REQUEST => write_request, DRAM_BUSY => write_dram_busy, HIT => HIT, HCLK => HCLK, -- The input variables to the state machine
+			state   => write_current_state                                                    -- The state register
 			);
 
 	r_fsm : read_fsm port map(dclk => DCLK, res_n => HRESETn,
-		-- The input variables to the state machine
-			request => read_request, hit => hit, dram_busy => pX_cmd_full, dram_empty => pX_rd_empty, ws_zero => read_ws_zero, hclk => HCLK,
-		-- The state register
-			state => read_current_state
+			request    => read_request, hit     => hit,          dram_busy => pX_cmd_full, -- The input variables to the state machine
+			dram_empty => pX_rd_empty,  ws_zero => read_ws_zero, hclk      => HCLK,
+			state => read_current_state -- The state register
 		);
 	--}}}
 
-	--{{{ Common FSM signals
+	--{{{ Common signals
 
 	pX_cmd_clk <= DCLK;
 	pX_wr_clk  <= DCLK;
 	pX_rd_clk  <= DCLK;
-	hit          <= '1' after 1 ns when ((tag_sram_a_do_tag = save0_haddr_tag) and tag_sram_a_do_valid = '1') else '0' after 1 ns; -- TODO: Verfify if this is correct.
 	HRESP        <= '0'; -- By design there are no errors introduced by this module :) TODO: Treat the Error bit from the DRAM controller
+
+	--{{{
+	tag_sram_a_en  <= '0' after 1 ns when (HSEL = '0' or HREADY = '0') else -- Don't read without a request
+	                  '1' after 1 ns when (read_current_state=idl_rdt or write_current_state=idl_rdt) else
+	                  '0' after 1 ns;
+
+	--}}}
+	tag_sram_a_idx <= "000" & HADDR_IDX; -- We could increase the size of the cache without changing the TAGSRAM...
+	--{{{
+	hit          <= '1' after 1 ns when ((tag_sram_a_do_tag = save0_haddr_tag) and tag_sram_a_do_valid = '1') else
+	                '0' after 1 ns; -- TODO: Verfify if this is correct.
+	--}}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	--{{{
 	latch_bus : process(HCLK)
 	begin
@@ -398,20 +418,51 @@ begin
 	                                       (read_current_state=rd5) or (read_current_state=rd6) or (read_current_state=rd7)) else
 	                  '0' after 1 ns;
 	--}}}
-	--{{{
-	tag_sram_a_en  <= '0' after 1 ns when (HSEL = '0' or HREADY = '0') else -- Don't read without a request
-	                  '1' after 1 ns when (read_current_state=idl_rdt or write_current_state=idl_rdt) else
-	                  '0' after 1 ns;
-	--}}}
-	tag_sram_a_idx <= "000" & HADDR_IDX; -- We could increase the size of the cache without changing the TAGSRAM...
---	tag_sram_b_we
-	-- tag_sram_di
-
 
 	-- data_sram_en
 	-- data_sram_we
 	-- data_sram_idx
 	-- data_sram_di
+
+	--}}}
+
+	--{{{ Write FSM signals
+
+	write_request             <= HWRITE and HREADY and HSEL after 1 ns;
+	write_dram_busy           <= pX_cmd_full or pX_rd_empty after 1 ns;
+	--{{{
+	write_busy    <= '0' after 1 ns when (write_current_state=idl_rdt or write_current_state=cmp_sto or write_current_state=sync) else
+					'1' after 1 ns;
+	--}}}
+
+	data_sram_a_en   <= '1' after 1 ns when (write_current_state=cmp_sto) else '0' after 1 ns;
+	data_sram_a_mask <= write_mask(HADDR_BS, HSIZE) after 1 ns when (write_current_state=cmp_sto) else (others => '-') after 1 ns;
+	data_sram_a_idx  <= "000" & SAVE0_HADDR_IDX after 1 ns when (write_current_state=cmp_sto) else (others => '-') after 1 ns;
+	data_sram_a_di   <= HWDATA after 1 ns when (write_current_state=cmp_sto) else (others => '-') after 1 ns;
+
+
+
+
+
+
+
+
+	--{{{
+	write_propagate : process(DCLK)
+	begin
+		if(rising_edge(HCLK)) then
+			if(HRESETn = '1') then
+				write_SAVE1_HADDR  <= ( others => '0' );
+				write_SAVE1_HSIZE  <= ( others => '0' );
+				write_SAVE1_HWDATA <= ( others => '0' );
+			elsif ( write_current_state = cmp_sto ) then
+				write_SAVE1_HADDR  <= SAVE0_HADDR;
+				write_SAVE1_HSIZE  <= SAVE0_HSIZE;
+				write_SAVE1_HWDATA <= HWDATA;
+			end if;
+		end if;
+	end process write_propagate;
+	--}}}
 
 	--}}}
 
@@ -427,6 +478,32 @@ begin
 	read_busy    <= '0' after 1 ns when (read_current_state=idl_rdt or read_current_state=cmp_dlv or read_current_state=sync) else
 					'1' after 1 ns;
 	--}}}
+
+	--{{{
+	tag_sram_b_en  <= '1' after 1 ns when (read_current_state=rd1_keep) else
+					  '0' after 1 ns;
+	--}}}
+	--{{{
+	tag_sram_b_idx <= "000" & write_SAVE1_HADDR_IDX      after 1 ns when (read_current_state=rd1_keep) else
+					  (others => '-')                    after 1 ns;
+	--}}}
+	--{{{
+	tag_sram_b_di  <= "11" & '1' & write_SAVE1_HADDR_TAG after 1 ns when (read_current_state=rd1_keep) else
+					  (others => '-')                    after 1 ns;
+	--}}}
+
+
+	-- TODO
+	-- signal data_sram_b_en         : std_logic;
+	-- signal data_sram_b_we         : std_logic;
+	-- --signal data_sram_b_mask    : std_logic_vector( 3 downto 0);
+	-- signal data_sram_b_idx        : std_logic_vector( 9 downto 0);
+	-- signal data_sram_b_di         : std_logic_vector(31 downto 0);
+	-- signal data_sram_b_do         : std_logic_vector(31 downto 0);
+
+
+
+
 
 	--{{{
 	read_propagate : process(DCLK)
@@ -446,34 +523,6 @@ begin
 			end if;
 		end if;
 	end process read_propagate;
-	--}}}
-
-	--}}}
-
-	--{{{ Write FSM signals
-
-	write_request             <= HWRITE and HREADY and HSEL after 1 ns;
-	write_dram_busy           <= pX_cmd_full or pX_rd_empty after 1 ns;
-	--{{{
-	write_busy    <= '0' after 1 ns when (write_current_state=idl_rdt or write_current_state=cmp_sto or write_current_state=sync) else
-					'1' after 1 ns;
-	--}}}
-
-	--{{{
-	write_propagate : process(DCLK)
-	begin
-		if(rising_edge(HCLK)) then
-			if(HRESETn = '1') then
-				write_SAVE1_HADDR  <= ( others => '0' );
-				write_SAVE1_HSIZE  <= ( others => '0' );
-				write_SAVE1_HWDATA <= ( others => '0' );
-			elsif ( write_current_state = cmp_sto ) then
-				write_SAVE1_HADDR  <= SAVE0_HADDR;
-				write_SAVE1_HSIZE  <= SAVE0_HSIZE;
-				write_SAVE1_HWDATA <= HWDATA;
-			end if;
-		end if;
-	end process write_propagate;
 	--}}}
 
 	--}}}
