@@ -493,13 +493,45 @@ begin
 	--}}}
 
 
-	-- TODO
-	-- signal data_sram_b_en         : std_logic;
-	-- signal data_sram_b_we         : std_logic;
-	-- --signal data_sram_b_mask    : std_logic_vector( 3 downto 0);
-	-- signal data_sram_b_idx        : std_logic_vector( 9 downto 0);
-	-- signal data_sram_b_di         : std_logic_vector(31 downto 0);
-	-- signal data_sram_b_do         : std_logic_vector(31 downto 0);
+	data_sram_b_en <= '1' after 1 ns when (read_current_state=cmp_dlv) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd0) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd1_keep) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd1) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd2) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd3) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd4) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd5) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd6) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd7) else
+	                  '0' after 1 ns;
+
+	data_sram_b_we <= '1' after 1 ns when (pX_rd_empty = '1' and read_current_state=rd0) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd1_keep) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd1) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd2) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd3) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd4) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd5) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd6) or
+	                                      (pX_rd_empty = '1' and read_current_state=rd7) else
+	                  '0' after 1 ns;
+
+	data_sram_b_idx <= HADDR_IDX            & HADDR_WS                                           after 1 ns when (read_current_state=cmp_dlv)  else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+0) after 1 ns when (read_current_state=rd0)      else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+1) after 1 ns when (read_current_state=rd1_keep) else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+1) after 1 ns when (read_current_state=rd1)      else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+2) after 1 ns when (read_current_state=rd2)      else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+3) after 1 ns when (read_current_state=rd3)      else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+4) after 1 ns when (read_current_state=rd4)      else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+5) after 1 ns when (read_current_state=rd5)      else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+6) after 1 ns when (read_current_state=rd6)      else
+	                   read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+7) after 1 ns when (read_current_state=rd7)      else
+	                   (others => '-') after 1 ns;
+
+	data_sram_b_di <= pX_rd_data after 1 ns when (read_current_state=rd0 or read_current_state=rd1_keep or read_current_state=rd1 or
+	                                              read_current_state=rd2 or read_current_state=rd3      or read_current_state=rd4 or
+	                                              read_current_state=rd5 or read_current_state=rd6      or read_current_state=rd7) else
+	                   (others => '-') after 1 ns;
 
 
 
