@@ -80,9 +80,9 @@ begin
 	--{{{
 	adopt_next_state: process(DCLK)
 	begin
-		if(rising_edge(CLK)) then
+		if(rising_edge(DCLK)) then
 			if( RES_n = '1' ) then
-				current_state        <= s_idle;
+				current_state        <= idl_rdt;
 			else
 				current_state        <= next_state;
 			end if;
