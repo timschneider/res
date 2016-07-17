@@ -241,7 +241,7 @@ architecture cache of AHBL2SDRAM is
 
 	--{{{
 	function hsize_2_real_size (HSIZE : std_logic_vector(2 downto 0)) return natural is
-	variable real_size : integer range 4 downto 1;
+	variable real_size : integer range 4 downto 0;
 	begin
 		if HSIZE = "000" then
 			real_size := 1;
@@ -264,10 +264,10 @@ architecture cache of AHBL2SDRAM is
 	begin
 		result := std_logic_vector(shift_right(unsigned(DATA), to_integer(unsigned(BS))*8));
 		case real_size is
-			when 1 => result := "00000000000000000000000000000000" & result( 7 downto 0);
-			when 2 => result := "0000000000000000"                 & result(15 downto 0);
-			when 3 => result := "00000000"                         & result(23 downto 0);
-			when 4 => result :=                                      result(31 downto 0);
+			when 1 => result := "000000000000000000000000" & result( 7 downto 0);
+			when 2 => result := "0000000000000000"         & result(15 downto 0);
+			when 3 => result := "00000000"                 & result(23 downto 0);
+			when 4 => result :=                              result(31 downto 0);
 			when others => -- shouldn't happen
 				assert true report "Invalid size requested" severity failure;
 				return X"DEADBEEF";
@@ -502,16 +502,16 @@ begin
 	                    '0' after 1 ns;
 	--}}}
 	--{{{
-	data_sram_b_idx  <= HADDR_IDX            & HADDR_WS                                           after 1 ns when (read_current_state=cmp_dlv)  else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+0) after 1 ns when (read_current_state=rd0)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+1) after 1 ns when (read_current_state=rd1_keep) else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+1) after 1 ns when (read_current_state=rd1)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+2) after 1 ns when (read_current_state=rd2)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+3) after 1 ns when (read_current_state=rd3)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+4) after 1 ns when (read_current_state=rd4)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+5) after 1 ns when (read_current_state=rd5)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+6) after 1 ns when (read_current_state=rd6)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+7) after 1 ns when (read_current_state=rd7)      else
+	data_sram_b_idx  <= HADDR_IDX            & HADDR_WS                                          after 1 ns when (read_current_state=cmp_dlv)  else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+0) after 1 ns when (read_current_state=rd0)      else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+1) after 1 ns when (read_current_state=rd1_keep) else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+1) after 1 ns when (read_current_state=rd1)      else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+2) after 1 ns when (read_current_state=rd2)      else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+3) after 1 ns when (read_current_state=rd3)      else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+4) after 1 ns when (read_current_state=rd4)      else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+5) after 1 ns when (read_current_state=rd5)      else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+6) after 1 ns when (read_current_state=rd6)      else
+	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_WS)+7) after 1 ns when (read_current_state=rd7)      else
 	                    (others => '-') after 1 ns;
 	--}}}
 	--{{{

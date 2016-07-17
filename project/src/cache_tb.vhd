@@ -9,17 +9,16 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity cache_tb is
-    port (
-    );
 end entity;
 
 architecture rw_test of cache_tb is 
 
+	--{{{
     component AHBL2SDRAM
         port (
-
         -- AHB-LITE Interface
         -- Global signals ---------------------------------------------------------------------------------------------------------------
                 HCLK              : in  std_logic;                     -- Bus clock
@@ -56,40 +55,43 @@ architecture rw_test of cache_tb is
             --  selfrefresh_enter : out std_logic;                     -- Ask RAM to go to self-refresh mode. Hold high until selfrefresh_mode goes high.
             --  selfrefresh_mode  : in  std_logic;                     -- 0: Normal mode, 1: RAM is in selfrefresh mode.
         -- Command Path. TODO: Replace X by appropriate port number -----------------------------------------------------------
-                pX_cmd_addr       : out std_logic_vector(29 downto 0); -- Byte start address for current transaction.
-                pX_cmd_bl         : out std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 indicates a burst of one word
-                pX_cmd_clk        : out std_logic;                     -- User clock for the command FIFO
-                pX_cmd_empty      : in  std_logic;                     -- Command FIFO empty bit: 0: Not empty, 1: Empty
-                pX_cmd_en         : out std_logic;                     -- Write enable for the command FIFO: 0: Diabled, 1: Enabled
-                pX_cmd_error      : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
-                pX_cmd_full       : in  std_logic;                     -- Command FIFO full bit: 0: Not full, 1: Full
-                pX_cmd_instr      : out std_logic_vector(2 downto 0);  -- Current instruction. 000: Wrtie, 001: Read, 010: Read w. precharge, 011: ...
+                p1_cmd_addr       : out std_logic_vector(29 downto 0); -- Byte start address for current transaction.
+                p1_cmd_bl         : out std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 indicates a burst of one word
+                p1_cmd_clk        : out std_logic;                     -- User clock for the command FIFO
+                p1_cmd_empty      : in  std_logic;                     -- Command FIFO empty bit: 0: Not empty, 1: Empty
+                p1_cmd_en         : out std_logic;                     -- Write enable for the command FIFO: 0: Diabled, 1: Enabled
+                p1_cmd_error      : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
+                p1_cmd_full       : in  std_logic;                     -- Command FIFO full bit: 0: Not full, 1: Full
+                p1_cmd_instr      : out std_logic_vector(2 downto 0);  -- Current instruction. 000: Wrtie, 001: Read, 010: Read w. precharge, 011: ...
         -- Write Datapath -----------------------------------------------------------------------------------------------------
-                pX_wr_clk         : out std_logic;                     -- Clock for the write data FIFO
-                pX_wr_count       : in  std_logic_vector( 6 downto 0); -- Write data FIFO fill level: 0: empty. Note longer latency than pX_wr_empty!
-                pX_wr_data        : out std_logic_vector(31 downto 0); -- Data to be stored in the FIFO and be written to the DDR2-DRAM.
-                pX_wr_empty       : in  std_logic;                     -- Write data FIFO empty bit: 0: Not empty, 1: Empty
-                pX_wr_en          : out std_logic;                     -- Write enable for the write data FIFO
-                pX_wr_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
-                pX_wr_full        : in  std_logic;                     -- Write data FIFO full bit: 0: Not full, 1: Full
-                pX_wr_mask        : out std_logic_vector(3 downto 0);  -- Mask write data. A high bit means Corresponding byte is not written to the RAM.
-                pX_wr_underrun    : in  std_logic;                     -- Underrun flag. 0: All ok, 1: Underrun. Last valid data is written repeatedly.
+                p1_wr_clk         : out std_logic;                     -- Clock for the write data FIFO
+                p1_wr_count       : in  std_logic_vector( 6 downto 0); -- Write data FIFO fill level: 0: empty. Note longer latency than p1_wr_empty!
+                p1_wr_data        : out std_logic_vector(31 downto 0); -- Data to be stored in the FIFO and be written to the DDR2-DRAM.
+                p1_wr_empty       : in  std_logic;                     -- Write data FIFO empty bit: 0: Not empty, 1: Empty
+                p1_wr_en          : out std_logic;                     -- Write enable for the write data FIFO
+                p1_wr_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
+                p1_wr_full        : in  std_logic;                     -- Write data FIFO full bit: 0: Not full, 1: Full
+                p1_wr_mask        : out std_logic_vector(3 downto 0);  -- Mask write data. A high bit means Corresponding byte is not written to the RAM.
+                p1_wr_underrun    : in  std_logic;                     -- Underrun flag. 0: All ok, 1: Underrun. Last valid data is written repeatedly.
         -- Read Datapath ------------------------------------------------------------------------------------------------------
-                pX_rd_clk         : out std_logic;                     -- Clock for the read data FIFO
-                pX_rd_en          : out std_logic;                     -- Read enable bit for the read data FIFO: 0: Diabled, 1: Enabled
-                pX_rd_data        : in  std_logic_vector(31 downto 0); -- Data read from the RAM
-                pX_rd_full        : in  std_logic;                     -- Read data FIFO full bit: 0: All ok, 1: Full. Data will be discarded.
-                pX_rd_empty       : in  std_logic;                     -- Read data FIFO empty bit: 0: Not empty, 1: Empty. Cannot read data from FIFO.
-                pX_rd_count       : in  std_logic_vector(6 downto 0);  -- Read data FIFO fill level: 0: empty. Note longer latency than pX_rd_full!
-                pX_rd_overflow    : in  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
-                pX_rd_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
+                p1_rd_clk         : out std_logic;                     -- Clock for the read data FIFO
+                p1_rd_en          : out std_logic;                     -- Read enable bit for the read data FIFO: 0: Diabled, 1: Enabled
+                p1_rd_data        : in  std_logic_vector(31 downto 0); -- Data read from the RAM
+                p1_rd_full        : in  std_logic;                     -- Read data FIFO full bit: 0: All ok, 1: Full. Data will be discarded.
+                p1_rd_empty       : in  std_logic;                     -- Read data FIFO empty bit: 0: Not empty, 1: Empty. Cannot read data from FIFO.
+                p1_rd_count       : in  std_logic_vector(6 downto 0);  -- Read data FIFO fill level: 0: empty. Note longer latency than p1_rd_full!
+                p1_rd_overflow    : in  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
+                p1_rd_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
         -- Quadruple speed internal clock
-                QCLK              : in std_logic; 
+                DCLK              : in std_logic; 
+                mem_calib_done         : in std_logic
         );
     end component;
+	--}}}
 
+	--{{{
     -- AHB Lite 
-    signal hclk        :  std_logic; -- AHB Clock: 50 MHz
+        signal hclk        :  std_logic := '0'; -- AHB Clock: 50 MHz
     signal hresetn     :  std_logic;
     signal haddr       :  std_logic_vector(31 downto 0);
     signal htrans      :  std_logic_vector(1 downto 0);
@@ -99,39 +101,46 @@ architecture rw_test of cache_tb is
     signal hready      :  std_logic;
     signal hreadyout   :  std_logic;
     signal hrdata      :  std_logic_vector(31 downto 0);
+    signal hsize       :  std_logic_vector(2 downto 0);
 
     -- Memory Controller
-    signal pX_cmd_addr       :  std_logic_vector(29 downto 0); -- Byte start address for current transaction.
-    signal pX_cmd_bl         :  std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 dicates a burst of one word
-    signal pX_cmd_clk        :  std_logic;                     -- User clock for the command FIFO
-    signal pX_cmd_empty      :  std_logic;                     -- Command FIFO empty bit: 0: Not empty, 1: Empty
-    signal pX_cmd_en         :  std_logic;                     -- Write enable for the command FIFO: 0: Diabled, 1: Enabled
-    signal pX_cmd_error      :  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
-    signal pX_cmd_full       :  std_logic;                     -- Command FIFO full bit: 0: Not full, 1: Full
-    signal pX_cmd_strin      :  std_logic_vector(2 downto 0);  -- Current struction. 000: Wrtie, 001: Read, 010: Read w. precharge, 011: ...
+    signal p1_cmd_addr       :  std_logic_vector(29 downto 0); -- Byte start address for current transaction.
+    signal p1_cmd_bl         :  std_logic_vector(5 downto 0);  -- Busrst length-1, eg. 0 dicates a burst of one word
+    signal p1_cmd_clk        :  std_logic;                     -- User clock for the command FIFO
+    signal p1_cmd_empty      :  std_logic;                     -- Command FIFO empty bit: 0: Not empty, 1: Empty
+    signal p1_cmd_en         :  std_logic;                     -- Write enable for the command FIFO: 0: Diabled, 1: Enabled
+    signal p1_cmd_error      :  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
+    signal p1_cmd_full       :  std_logic;                     -- Command FIFO full bit: 0: Not full, 1: Full
+    signal p1_cmd_instr      :  std_logic_vector(2 downto 0);  -- Current struction. 000: Wrtie, 001: Read, 010: Read w. precharge, 011: ...
 -- Write Datapath -----------------------------------------------------------------------------------------------------
-    signal pX_wr_clk         :  std_logic;                     -- Clock for the write data FIFO
-    signal pX_wr_count       :  std_logic_vector( 6 downto 0); -- Write data FIFO fill level: 0: empty. Note longer latency than pX_wr_empty!
-    signal pX_wr_data        :  std_logic_vector(31 downto 0); -- Data to be stored  the FIFO and be written to the DDR2-DRAM.
-    signal pX_wr_empty       :  std_logic;                     -- Write data FIFO empty bit: 0: Not empty, 1: Empty
-    signal pX_wr_en          :  std_logic;                     -- Write enable for the write data FIFO
-    signal pX_wr_error       :  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
-    signal pX_wr_full        :  std_logic;                     -- Write data FIFO full bit: 0: Not full, 1: Full
-    signal pX_wr_mask        :  std_logic_vector(3 downto 0);  -- Mask write data. A high bit means Correspondg byte is not written to the RAM.
-    signal pX_wr_underrun    :  std_logic;                     -- Underrun flag. 0: All ok, 1: Underrun. Last valid data is written repeatedly.
+    signal p1_wr_clk         :  std_logic;                     -- Clock for the write data FIFO
+    signal p1_wr_count       :  std_logic_vector( 6 downto 0); -- Write data FIFO fill level: 0: empty. Note longer latency than p1_wr_empty!
+    signal p1_wr_data        :  std_logic_vector(31 downto 0); -- Data to be stored  the FIFO and be written to the DDR2-DRAM.
+    signal p1_wr_empty       :  std_logic;                     -- Write data FIFO empty bit: 0: Not empty, 1: Empty
+    signal p1_wr_en          :  std_logic;                     -- Write enable for the write data FIFO
+    signal p1_wr_error       :  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
+    signal p1_wr_full        :  std_logic;                     -- Write data FIFO full bit: 0: Not full, 1: Full
+    signal p1_wr_mask        :  std_logic_vector(3 downto 0);  -- Mask write data. A high bit means Correspondg byte is not written to the RAM.
+    signal p1_wr_underrun    :  std_logic;                     -- Underrun flag. 0: All ok, 1: Underrun. Last valid data is written repeatedly.
 -- Read Datapath ------------------------------------------------------------------------------------------------------
-    signal pX_rd_clk         :  std_logic;                     -- Clock for the read data FIFO
-    signal pX_rd_en          :  std_logic;                     -- Read enable bit for the read data FIFO: 0: Diabled, 1: Enabled
-    signal pX_rd_data        :  std_logic_vector(31 downto 0); -- Data read from the RAM
-    signal pX_rd_full        :  std_logic;                     -- Read data FIFO full bit: 0: All ok, 1: Full. Data will be discarded.
-    signal pX_rd_empty       :  std_logic;                     -- Read data FIFO empty bit: 0: Not empty, 1: Empty. Cannot read data from FIFO.
-    signal pX_rd_count       :  std_logic_vector(6 downto 0);  -- Read data FIFO fill level: 0: empty. Note longer latency than pX_rd_full!
-    signal pX_rd_overflow    :  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
-    signal pX_rd_error       :  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
+    signal p1_rd_clk         :  std_logic;                     -- Clock for the read data FIFO
+    signal p1_rd_en          :  std_logic;                     -- Read enable bit for the read data FIFO: 0: Diabled, 1: Enabled
+    signal p1_rd_data        :  std_logic_vector(31 downto 0); -- Data read from the RAM
+    signal p1_rd_full        :  std_logic;                     -- Read data FIFO full bit: 0: All ok, 1: Full. Data will be discarded.
+    signal p1_rd_empty       :  std_logic;                     -- Read data FIFO empty bit: 0: Not empty, 1: Empty. Cannot read data from FIFO.
+    signal p1_rd_count       :  std_logic_vector(6 downto 0);  -- Read data FIFO fill level: 0: empty. Note longer latency than p1_rd_full!
+    signal p1_rd_overflow    :  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
+    signal p1_rd_error       :  std_logic;                     -- Error bit. Need to reset the MCB to resolve.
 
+    signal mem_calib_done         : std_logic;
+    signal dclk              : std_logic := '0';
+	--}}}
+
+        signal cnt : unsigned(31 downto 0) := (others => '0');
 begin
     
-    port map (
+	--{{{
+    main : AHBL2SDRAM port map (
     -- AHB Lite 
          HCLK           => hclk,
          HRESETn        => hresetN, 
@@ -143,87 +152,141 @@ begin
          HREADY         => hready,
          HREADYOUT      => hreadyout,
          HRDATA         => hrdata,
+         HSIZE          => hsize,
+
     -- Command Path
-         pX_cmd_addr    => pX_cmd_addr,
-         pX_cmd_bl      => pX_cmd_bl,
-         pX_cmd_clk     => pX_cmd_clk,
-         pX_cmd_empty   => pX_cmd_empty
-         pX_cmd_en      => pX_cmd_en,
-         pX_cmd_error   => pX_cmd_error,
-         pX_cmd_full    => pX_cmd_full,
-         pX_cmd_strin   => pX_cmd_strin,
+         p1_cmd_addr    => p1_cmd_addr,
+         p1_cmd_bl      => p1_cmd_bl,
+         p1_cmd_clk     => p1_cmd_clk,
+         p1_cmd_empty   => p1_cmd_empty,
+         p1_cmd_en      => p1_cmd_en,
+         p1_cmd_error   => p1_cmd_error,
+         p1_cmd_full    => p1_cmd_full,
+         p1_cmd_instr   => p1_cmd_instr,
+
     -- Write Datapath
-         pX_wr_clk      => pX_wr_clk,
-         pX_wr_count    => pX_wr_count, 
-         pX_wr_data     => pX_wr_data, 
-         pX_wr_empty    => pX_wr_empty,
-         pX_wr_en       => pX_wr_en,
-         pX_wr_error    => pX_wr_error,
-         pX_wr_full     => pX_wr_full,
-         pX_wr_mask     => pX_wr_mask,
-         pX_wr_underrun => pX_wr_underrun,
+         p1_wr_clk      => p1_wr_clk,
+         p1_wr_count    => p1_wr_count, 
+         p1_wr_data     => p1_wr_data, 
+         p1_wr_empty    => p1_wr_empty,
+         p1_wr_en       => p1_wr_en,
+         p1_wr_error    => p1_wr_error,
+         p1_wr_full     => p1_wr_full,
+         p1_wr_mask     => p1_wr_mask,
+         p1_wr_underrun => p1_wr_underrun,
     -- Read Datapath
-         pX_rd_clk      => pX_rd_clk,
-         pX_rd_en       => pX_rd_en,
-         pX_rd_data     => pX_rd_data,
-         pX_rd_full     => pX_rd_full,
-         pX_rd_empty    => pX_rd_empty,
-         pX_rd_count    => pX_rd_count,
-         pX_rd_overflow => pX_rd_overflow,
-         pX_rd_error    => pX_rd_error
+         p1_rd_clk      => p1_rd_clk,
+         p1_rd_en       => p1_rd_en,
+         p1_rd_data     => p1_rd_data,
+         p1_rd_full     => p1_rd_full,
+         p1_rd_empty    => p1_rd_empty,
+         p1_rd_count    => p1_rd_count,
+         p1_rd_overflow => p1_rd_overflow,
+         p1_rd_error    => p1_rd_error,
+         
+         DCLK           => dclk,
+         mem_calib_done      => mem_calib_done
     );
+	--}}}
+
     -- clock generator ( 20ns => 50 MHz )
     hclk <= not hclk after 20 ns;
+    dclk <= not dclk after 10 ns;
 
+    process(hclk)
+    begin
+    end process;
 
 -- AHB Side
     -- test read commands
     hwrite <= '0'; -- we want to read in the next cycles
-    haddr <= "";
-    hwdata <= "0";
+    haddr <= x"b00bb1e5";
+    hwdata <= x"b00bb1e5" after 20 ns;
+    hsize <= "111";
     hready <= '1';
-
-    -- test write commands
-    hwrite <= '1'; -- we want to write in the next cycles
-    haddr <= "";
-    hwdata <= "110101011101010100";
-    hready <= '1';
-
+    hsel <= '1';
+    hsel <= '0' after 20 ns;
 
 -- Memory Controller side
     -- all get the same stepping
-    pX_rd_clk <= hclk;
-    pX_wr_clk <= hclk;
-    pX_cmd_clk <= hclk;
+    p1_rd_clk <= dclk;
+    p1_wr_clk <= dclk;
+    p1_cmd_clk <= dclk;
+    p1_rd_empty <= '0';
+
+
+
+
+
+    -- Command Path
+         --p1_cmd_clk        : out
+         --p1_cmd_instr      : out
+         --p1_cmd_addr       : out
+         --p1_cmd_bl         : out
+         --p1_cmd_en         : out
+         p1_cmd_empty      <= '0'; --: in 
+         p1_cmd_error      <= '0'; --: in 
+         p1_cmd_full       <= '0'; --: in 
+
+    -- Write Datapath
+         --p1_wr_clk         : out
+         --p1_wr_data        : out
+         --p1_wr_mask        : out
+         --p1_wr_en          : out
+         --p1_wr_count       : in 
+         --p1_wr_empty       : in 
+         p1_wr_error       <= '0'; --: in 
+         p1_wr_full        <= '0'; --: in 
+         p1_wr_underrun    <= '0'; --: in 
+    -- Read Datapath
+         --p1_rd_clk         : out
+         --p1_rd_en          : out
+         --p1_rd_data        : in 
+         --p1_rd_full        : in 
+         --p1_rd_empty       : in 
+         --p1_rd_count       : in 
+         --p1_rd_overflow    : in 
+         p1_rd_error       <= '0'; --: in 
+
+
+
+
+
+
+
+
+
+
 
     -- write "fifo"
-    process 
-    begin
-        wait until rising_edge(pX_wr_clk) and rising_edge(pX_wr_clk)
-        -- we can actually ignore the data....
-    end process; 
 
     -- read "fifo"
     process 
         -- variable that count the clock
-        variable cnt : integer := 0;
     begin
-        wait until rising_edge(pX_rd_clk) and rising_edge(pX_rd_clk)
-        if ( cnt = 8 ) then
-            cnt = 0;
-            pX_rd_data <= "1";
+        wait until rising_edge(p1_rd_clk);
+        if (p1_rd_en = '1' ) then
+            p1_rd_data <= std_logic_vector(cnt);
+            cnt <= cnt + 1;
         else 
-            cnt = cnt + 1;
+            cnt <= (others => '0');
         end if;
     end process; 
 
-    -- cmd "fifo"
-    process 
-        -- variable that count the clock
-        variable cnt : integer := 0;
-    begin
-        wait until rising_edge(pX_cmd_clk) and rising_edge(pX_cmd_clk)
-    end process; 
+
+
+
+
+
+
+
+	stop_simulation :process
+	begin
+		wait for 100 ns; --run the simulation for this duration
+		assert false report "simulation ended" severity failure;
+	end process;
+
+
 
 end rw_test;
 
