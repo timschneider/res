@@ -91,7 +91,7 @@ architecture rw_test of cache_tb is
 
 	--{{{
     -- AHB Lite 
-        signal hclk        :  std_logic := '0'; -- AHB Clock: 50 MHz
+    signal hclk        :  std_logic := '0'; -- AHB Clock: 50 MHz
     signal hresetn     :  std_logic;
     signal haddr       :  std_logic_vector(31 downto 0);
     signal htrans      :  std_logic_vector(1 downto 0);
