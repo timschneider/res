@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use work.read_fsm_pkg.all;
 use work.write_fsm_pkg.all;
 use ieee.numeric_std.all;
-
+--use ieee.std_logic_unsigned.all;
 
 entity AHBL2SDRAM is
 	port (
@@ -60,9 +60,9 @@ entity AHBL2SDRAM is
 		p1_rd_overflow    : in  std_logic;                     -- Overflow flag: 0: All ok, 1: Data was lost because the FIFO overflowed.
 		p1_rd_error       : in  std_logic;                     -- Error bit. Need to reset the MCB to resolve. }}}
 
--- Miscellaneous non-bus signals {{{
-		DCLK              : in std_logic;                      -- Double speed internal clock used to speed up the internal logic.
-		mem_calib_done    : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!! }}}
+-- Double speed internal clock
+		DCLK              : in std_logic;
+		mem_calib_done    : in std_logic);                     -- Clock used to speed up the internal logic. MUST BE SYNCHRONISED WITH HCLK!!
 end AHBL2SDRAM;
 
 
@@ -89,17 +89,22 @@ architecture cache of AHBL2SDRAM is
 	constant DRAM_CMD_READ                      : std_logic_vector( 2 downto 0) := "001";
 	--}}}
 
+
 	--{{{ Tag SRAM:
 
 	signal tag_sram_a_en       :  std_logic;
+	--signal tag_sram_a_we       :  std_logic;
 	signal tag_sram_a_idx      :  std_logic_vector( 9 downto 0);
+	--signal tag_sram_a_di       :  std_logic_vector(15 downto 0);
 	signal tag_sram_a_do       :  std_logic_vector(15 downto 0);
 	alias  tag_sram_a_do_tag   is tag_sram_a_do(   11 downto 0);
 	alias  tag_sram_a_do_valid is tag_sram_a_do(            12);
 
 	signal tag_sram_b_en       :  std_logic;
+	--signal tag_sram_b_we       :  std_logic;
 	signal tag_sram_b_idx      :  std_logic_vector( 9 downto 0);
 	signal tag_sram_b_di       :  std_logic_vector(15 downto 0);
+	--signal tag_sram_b_do       :  std_logic_vector(15 downto 0);
 
 	component TAG_SRAM is
 		port (clk  : in std_logic;
@@ -123,12 +128,15 @@ architecture cache of AHBL2SDRAM is
 	--{{{ Data SRAM:
 
 	signal data_sram_a_en         : std_logic;
+	--signal data_sram_a_we         : std_logic;
 	signal data_sram_a_mask    : std_logic_vector( 3 downto 0);
 	signal data_sram_a_idx        : std_logic_vector( 9 downto 0);
 	signal data_sram_a_di         : std_logic_vector(31 downto 0);
+	--signal data_sram_a_do         : std_logic_vector(31 downto 0);
 
 	signal data_sram_b_en         : std_logic;
 	signal data_sram_b_we         : std_logic;
+	--signal data_sram_b_mask    : std_logic_vector( 3 downto 0);
 	signal data_sram_b_idx        : std_logic_vector( 9 downto 0);
 	signal data_sram_b_di         : std_logic_vector(31 downto 0);
 	signal data_sram_b_do         : std_logic_vector(31 downto 0);
@@ -157,6 +165,7 @@ architecture cache of AHBL2SDRAM is
 	--{{{ Address and Data save registers
 
 	signal SAVE0_HADDR   : std_logic_vector(31 downto  0);
+	alias  Save0_HADDR_NULLED      is HADDR(31 downto 24);
 	alias  Save0_HADDR_TAG         is HADDR(23 downto 12);
 	alias  Save0_HADDR_IDX         is HADDR(11 downto  5);
 	alias  Save0_HADDR_WS          is HADDR( 4 downto  2);
@@ -188,8 +197,8 @@ architecture cache of AHBL2SDRAM is
 
 		-- The input variables to the state machine
 				 REQUEST   : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
-				 HIT       : in  std_logic; -- The cache hit or miss information
 				 DRAM_BUSY : in  std_logic; -- p1_cmd_full || p1_rd_empty
+				 HIT       : in  std_logic; -- The cache hit or miss information
 				 HCLK      : in  std_logic; -- HCLK
 
 		-- The state register
@@ -206,8 +215,6 @@ architecture cache of AHBL2SDRAM is
 
 	signal read_SAVE1_HADDR          :  std_logic_vector(31 downto  0);
 	alias  read_SAVE1_HADDR_WS       is read_SAVE1_HADDR( 4 downto  2);
-	alias  read_SAVE1_HADDR_IDX      is read_SAVE1_HADDR(11 downto  5);
-	alias  read_SAVE1_HADDR_BS       is read_SAVE1_HADDR( 1 downto  0);
 	signal read_SAVE1_HSIZE          :  std_logic_vector( 2 downto  0);
 	signal read_keep_dram_data       :  std_logic_vector(31 downto  0);
 	signal read_busy                 :  std_logic;
@@ -221,7 +228,7 @@ architecture cache of AHBL2SDRAM is
 		REQUEST           : in  std_logic;                      -- !HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
 		HIT               : in  std_logic;                      -- The cache hit or miss information
 		DRAM_BUSY         : in  std_logic;                      -- p1_cmd_full
-		DRAM_EMPTY        : in  std_logic;                      -- p1_rd_empty
+	    DRAM_EMPTY        : in  std_logic;                      -- p1_rd_empty
 		WS_ZERO           : in  std_logic;                      -- Whether the requested word was the first in cache line
 		HCLK              : in  std_logic;
 
@@ -229,69 +236,42 @@ architecture cache of AHBL2SDRAM is
 		state             : out read_fsm_state_type
          );
 	end component READ_FSM;
+	--signal read_read_dram            : std_logic;
+	--signal read_read_dram_addr       : std_logic_vector(29 downto 0);
 	--}}}
 
-	--{{{ Hit and Miss Registers for statistics These will probably need to be moved to the module that contains the register file.
-
+	--{{{ Hit and Miss Registers for statistics
 	signal hit_counter  : unsigned (31 downto 0) := (others => '0');
 	signal miss_counter : unsigned (31 downto 0) := (others => '0');
 	---}}}
 
 	--{{{ Helper functions
 
-	--{{{
-	function hsize_2_real_size (HSIZE : std_logic_vector(2 downto 0)) return natural is
-	variable real_size : integer range 4 downto 1;
+	function write_mask (BS : std_logic_vector(1 downto 0); HSIZE : std_logic_vector(2 downto 0)) return std_logic_vector is
+	variable result: std_logic_vector(3 downto 0) := "1111";
+	variable real_size : integer range 4 downto 0;
 	begin
 		if HSIZE = "000" then
 			real_size := 1;
 		elsif HSIZE = "001" then
 			real_size := 2;
+			assert (BS(0) = '0') report "Unaligned half word write." severity error;
 		elsif HSIZE = "010" then
 			real_size := 4;
+			assert (BS = "00") report "Unaligned word write." severity error;
 		else
 		assert false report "Invalid HSIZE" severity error;
 			real_size := 0; -- block all reads for bigger sizes
 		end if;
-		return real_size;
-	end;
-	--}}}
 
-	--{{{
-	function align_output_data (BS : std_logic_vector(1 downto 0); HSIZE : std_logic_vector(2 downto 0); DATA : std_logic_vector(31 downto 0)) return std_logic_vector is
-	variable result: std_logic_vector(31 downto 0);
-	variable real_size : natural := hsize_2_real_size(HSIZE);
-	begin
-		result := std_logic_vector(shift_right(unsigned(DATA), to_integer(unsigned(BS))*8));
-		case real_size is
-			when 1 => result := "00000000000000000000000000000000" & result( 7 downto 0);
-			when 2 => result := "0000000000000000"                 & result(15 downto 0);
-			when 3 => result := "00000000"                         & result(23 downto 0);
-			when 4 => result :=                                      result(31 downto 0);
-			when others => -- shouldn't happen
-				assert true report "Invalid size requested" severity failure;
-				return X"DEADBEEF";
-
-		end case;
-		return result;
-	end;
-	--}}}
-
-	--{{{
-	function write_mask (BS : std_logic_vector(1 downto 0); HSIZE : std_logic_vector(2 downto 0)) return std_logic_vector is
-	variable result: std_logic_vector(3 downto 0) := "1111";
-	variable real_size : natural := hsize_2_real_size(HSIZE);
-	begin
-		for i in 0 to 3 loop
+		for i in 0 to 7 loop
 			if ( i >= to_integer(unsigned(BS)) and i < to_integer(unsigned(BS) + real_size)) then 
 				result(i) := '0';
 			end if;
 		end loop;
-		return result;
+	return result;
 	end;
 	--}}}
-	--}}}
-
 
 begin
 
@@ -310,7 +290,7 @@ begin
 		);
 
 	w_fsm:  WRITE_FSM port map (dclk => DCLK, res_n => HRESETn,
-			request => write_request, hit => hit, dram_busy => write_dram_busy, hclk => HCLK, -- The input variables to the state machine
+			REQUEST => write_request, DRAM_BUSY => write_dram_busy, HIT => HIT, HCLK => HCLK, -- The input variables to the state machine
 			state   => write_current_state                                                    -- The state register
 			);
 
@@ -323,36 +303,67 @@ begin
 
 	--{{{ Common signals
 
-	p1_cmd_clk     <= DCLK;
-	p1_wr_clk      <= DCLK;
-	p1_rd_clk      <= DCLK;
-	HRESP          <= '0'; -- By design there are no errors introduced by this module :) TODO: Treat the Error bit from the DRAM controller
-	tag_sram_a_idx <= "000" & HADDR_IDX; -- We could increase the size of the cache without changing the TAGSRAM...
+	p1_cmd_clk <= DCLK;
+	p1_wr_clk  <= DCLK;
+	p1_rd_clk  <= DCLK;
+	HRESP        <= '0'; -- By design there are no errors introduced by this module :) TODO: Treat the Error bit from the DRAM controller
+
 	--{{{
 	tag_sram_a_en  <= '0' after 1 ns when (HSEL = '0' or HREADY = '0') else -- Don't read without a request
 	                  '1' after 1 ns when (read_current_state=idl_rdt or write_current_state=idl_rdt) else
 	                  '0' after 1 ns;
 
 	--}}}
+	tag_sram_a_idx <= "000" & HADDR_IDX; -- We could increase the size of the cache without changing the TAGSRAM...
 	--{{{
-	hit            <= '1' after 1 ns when ((tag_sram_a_do_tag = save0_haddr_tag) and tag_sram_a_do_valid = '1') else
-	                  '0' after 1 ns; -- TODO: Verfify if this is correct.
+	hit          <= '1' after 1 ns when ((tag_sram_a_do_tag = save0_haddr_tag) and tag_sram_a_do_valid = '1') else
+	                '0' after 1 ns; -- TODO: Verfify if this is correct.
 	--}}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	--{{{
-	HREADYOUT      <= '1'             after 1 ns when (HRESETn = '1')                                                                          else
-	                  '0'             after 1 ns when (mem_calib_done = '0' and (read_request = '1' or write_request = '1'))                   else
-	                  '0'             after 1 ns when ((read_request = '1' and read_busy = '1') or (write_request = '1' and write_busy = '1')) else
-	                  hit             after 1 ns when (read_current_state=cmp_dlv)                                                             else
-	                  '0'             after 1 ns when (read_current_state=req0 or read_current_state=req1)                                     else
-	                  not p1_rd_empty after 1 ns when (read_current_state=rd0)                                                                 else
-	                  '1'             after 1 ns when (read_current_state=rd1_keep)                                                            else
-	                  '1'             after 1 ns when (write_current_state=cmp_sto)                                                            else
+	latch_bus : process(HCLK)
+	begin
+		if(rising_edge(HCLK)) then
+			if(HRESETn = '1') then
+				SAVE0_HADDR <= (others => '0');
+				SAVE0_HSIZE <= (others => '0');
+			elsif ( HSEL = '1' and HREADY = '1' ) then
+				SAVE0_HADDR <= HADDR;
+				SAVE0_HSIZE <= HSIZE;
+			end if;
+		end if;
+	end process latch_bus;
+	--}}}
+
+	--{{{
+	HREADYOUT      <= '0'             after 1 ns when ((read_request = '1' and read_busy = '1') or (write_request = '1' and write_busy = '1')) else -- block requests to busy FSMs
+	                  hit             after 1 ns when (read_current_state=cmp_dlv)                                     else
+	                  '0'             after 1 ns when (read_current_state=req0 or read_current_state=req1)              else
+	                  not p1_rd_empty after 1 ns when (read_current_state=rd0)                                         else
+	                  '1'             after 1 ns when (read_current_state=rd1_keep)                                    else
+	                  '1'             after 1 ns when (write_current_state=cmp_sto)                                    else
 	                  '1'             after 1 ns; -- Signal readiness on reset and all conditions where the cache is not not ready.
 	--}}}
 	--{{{
-	HRDATA         <= align_output_data(HADDR_BS, HSIZE, data_sram_b_do     ) after 1 ns when (read_current_state=cmp_dlv) else
-	                  align_output_data(read_SAVE1_HADDR_BS, read_SAVE1_HSIZE, p1_rd_data         ) after 1 ns when (read_current_state=rd0)     else
-	                  align_output_data(read_SAVE1_HADDR_BS, read_SAVE1_HSIZE, read_keep_dram_data) after 1 ns when (read_current_state=rd1_keep) else
+	HRDATA         <= data_sram_b_do      after 1 ns when (read_current_state=cmp_dlv) else
+	                  p1_rd_data          after 1 ns when (read_current_state=rd0)     else
+	                  read_keep_dram_data after 1 ns when (read_current_state=rd1_keep) else
 	                  (others => '-') after 1 ns;
 	--}}}
 	--{{{
@@ -369,12 +380,13 @@ begin
 	                  (others => '-')                                               after 1 ns;
 	--}}}
 	--{{{
-	p1_cmd_bl      <= "000" & std_logic_vector(7 - unsigned(     SAVE0_HADDR( 4 downto 2))) after 1 ns when (read_current_state=cmp_dlv and hit='0') else
-	                  "000" & std_logic_vector(7 - unsigned(read_SAVE1_HADDR( 4 downto 2))) after 1 ns when (read_current_state=req0)                else
-	                  "000" & std_logic_vector(unsigned(read_SAVE1_HADDR( 4 downto 2)) - 1) after 1 ns when (read_current_state=req1)                else
-	                  (others => '0')                                                       after 1 ns when (write_current_state=cmp_sto)            else
-	                  (others => '0')                                                       after 1 ns when (write_current_state=wait_sto)           else
-	                  (others => '-')                                                       after 1 ns;
+	--p1_cmd_bl 		<= (others => '0');
+	p1_cmd_bl(2 downto 0) <= std_logic_vector(7 - unsigned(     SAVE0_HADDR( 4 downto 2))) after 1 ns when (read_current_state=cmp_dlv and hit='0') else
+	                  std_logic_vector(7 - unsigned(read_SAVE1_HADDR( 4 downto 2))) after 1 ns when (read_current_state=req0)                 else
+	                  std_logic_vector(unsigned(read_SAVE1_HADDR( 4 downto 2)) - 1) after 1 ns when (read_current_state=req1)                 else
+	                  (others => '0')                                               after 1 ns when (write_current_state=cmp_sto)            else
+	                  (others => '0')                                               after 1 ns when (write_current_state=wait_sto)           else
+	                  (others => '-')                                               after 1 ns;
 	--}}}
 	--{{{
 	p1_cmd_en      <= '0' after 1 ns when (p1_cmd_full = '1') else
@@ -406,34 +418,35 @@ begin
 	                                       (read_current_state=rd5) or (read_current_state=rd6) or (read_current_state=rd7)) else
 	                  '0' after 1 ns;
 	--}}}
-	--{{{
-	latch_bus : process(HCLK) -- Using HCLK is intended here!
-	begin
-		if(rising_edge(HCLK)) then
-			if(HRESETn = '1') then
-				SAVE0_HADDR <= (others => '0');
-				SAVE0_HSIZE <= (others => '0');
-			elsif ( HSEL = '1' and HREADY = '1' ) then
-				SAVE0_HADDR <= HADDR;
-				SAVE0_HSIZE <= HSIZE;
-			end if;
-		end if;
-	end process latch_bus;
-	--}}}
+
+	-- data_sram_en
+	-- data_sram_we
+	-- data_sram_idx
+	-- data_sram_di
+
 	--}}}
 
 	--{{{ Write FSM signals
 
-	write_request    <= HWRITE and HREADY and HSEL after 1 ns;
-	write_dram_busy  <= p1_cmd_full or p1_rd_empty after 1 ns;
+	write_request             <= HWRITE and HREADY and HSEL after 1 ns;
+	write_dram_busy           <= p1_cmd_full or p1_rd_empty after 1 ns;
 	--{{{
-	write_busy       <= '0' after 1 ns when (write_current_state=idl_rdt or write_current_state=cmp_sto or write_current_state=sync) else
-	                    '1' after 1 ns;
+	write_busy    <= '0' after 1 ns when (write_current_state=idl_rdt or write_current_state=cmp_sto or write_current_state=sync) else
+					'1' after 1 ns;
 	--}}}
+
 	data_sram_a_en   <= '1' after 1 ns when (write_current_state=cmp_sto) else '0' after 1 ns;
 	data_sram_a_mask <= write_mask(HADDR_BS, HSIZE) after 1 ns when (write_current_state=cmp_sto) else (others => '-') after 1 ns;
 	data_sram_a_idx  <= "000" & SAVE0_HADDR_IDX after 1 ns when (write_current_state=cmp_sto) else (others => '-') after 1 ns;
 	data_sram_a_di   <= HWDATA after 1 ns when (write_current_state=cmp_sto) else (others => '-') after 1 ns;
+
+
+
+
+
+
+
+
 	--{{{
 	write_propagate : process(DCLK)
 	begin
@@ -450,76 +463,48 @@ begin
 		end if;
 	end process write_propagate;
 	--}}}
+
 	--}}}
 
 	--{{{ Read FSM signals
 
-	read_request     <= HSEL and HREADY and not HWRITE after 1 ns;
+	read_request <= HSEL and HREADY and not HWRITE after 1 ns;
 	--{{{
-	read_ws_zero     <= '1' after 1 ns when (read_current_state=cmp_dlv and HADDR_WS = "00") else
-	                    '1' after 1 ns when (read_current_state=req0 and read_SAVE1_HADDR_WS = "00") else
-	                    '0' after 1 ns;
+	read_ws_zero <= '1' after 1 ns when (read_current_state=cmp_dlv and HADDR_WS = "00") else
+					'1' after 1 ns when (read_current_state=req0 and read_SAVE1_HADDR_WS = "00") else
+					'0' after 1 ns;
 	--}}}
 	--{{{
-	read_busy        <= '0' after 1 ns when (read_current_state=idl_rdt or read_current_state=cmp_dlv or read_current_state=sync) else
-	                    '1' after 1 ns;
+	read_busy    <= '0' after 1 ns when (read_current_state=idl_rdt or read_current_state=cmp_dlv or read_current_state=sync) else
+					'1' after 1 ns;
+	--}}}
+
+	--{{{
+	tag_sram_b_en  <= '1' after 1 ns when (read_current_state=rd1_keep) else
+					  '0' after 1 ns;
 	--}}}
 	--{{{
-	tag_sram_b_en    <= '1' after 1 ns when (read_current_state=rd1_keep) else
-	                    '0' after 1 ns;
+	tag_sram_b_idx <= "000" & write_SAVE1_HADDR_IDX      after 1 ns when (read_current_state=rd1_keep) else
+					  (others => '-')                    after 1 ns;
 	--}}}
 	--{{{
-	tag_sram_b_idx   <= "000" & write_SAVE1_HADDR_IDX      after 1 ns when (read_current_state=rd1_keep) else
-	                    (others => '-')                    after 1 ns;
+	tag_sram_b_di(14 downto 0)  <= "11" & '1' & write_SAVE1_HADDR_TAG after 1 ns when (read_current_state=rd1_keep) else
+					  (others => '-')                    after 1 ns;
 	--}}}
-	--{{{
-	tag_sram_b_di    <= "111" & '1' & write_SAVE1_HADDR_TAG after 1 ns when (read_current_state=rd1_keep) else
-	                    (others => '-')                     after 1 ns;
-	--}}}
-	--{{{
-	data_sram_b_en   <= '1' after 1 ns when (read_current_state=cmp_dlv) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd0) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd1_keep) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd1) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd2) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd3) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd4) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd5) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd6) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd7) else
-	                    '0' after 1 ns;
-	--}}}
-	--{{{
-	data_sram_b_we   <= '1' after 1 ns when (p1_rd_empty = '1' and read_current_state=rd0) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd1_keep) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd1) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd2) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd3) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd4) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd5) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd6) or
-	                                        (p1_rd_empty = '1' and read_current_state=rd7) else
-	                    '0' after 1 ns;
-	--}}}
-	--{{{
-	data_sram_b_idx  <= HADDR_IDX            & HADDR_WS                                           after 1 ns when (read_current_state=cmp_dlv)  else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+0) after 1 ns when (read_current_state=rd0)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+1) after 1 ns when (read_current_state=rd1_keep) else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+1) after 1 ns when (read_current_state=rd1)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+2) after 1 ns when (read_current_state=rd2)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+3) after 1 ns when (read_current_state=rd3)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+4) after 1 ns when (read_current_state=rd4)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+5) after 1 ns when (read_current_state=rd5)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+6) after 1 ns when (read_current_state=rd6)      else
-	                    read_SAVE1_HADDR_IDX & std_logic_vector(unsigned(read_SAVE1_HADDR_IDX)+7) after 1 ns when (read_current_state=rd7)      else
-	                    (others => '-') after 1 ns;
-	--}}}
-	--{{{
-	data_sram_b_di   <= p1_rd_data after 1 ns when (read_current_state=rd0 or read_current_state=rd1_keep or read_current_state=rd1 or
-	                                                read_current_state=rd2 or read_current_state=rd3      or read_current_state=rd4 or
-	                                                read_current_state=rd5 or read_current_state=rd6      or read_current_state=rd7) else
-	                     (others => '-') after 1 ns;
-	--}}}
+
+
+	-- TODO
+	-- signal data_sram_b_en         : std_logic;
+	-- signal data_sram_b_we         : std_logic;
+	-- --signal data_sram_b_mask    : std_logic_vector( 3 downto 0);
+	-- signal data_sram_b_idx        : std_logic_vector( 9 downto 0);
+	-- signal data_sram_b_di         : std_logic_vector(31 downto 0);
+	-- signal data_sram_b_do         : std_logic_vector(31 downto 0);
+
+
+
+
+
 	--{{{
 	read_propagate : process(DCLK)
 	begin
@@ -539,20 +524,17 @@ begin
 		end if;
 	end process read_propagate;
 	--}}}
+
 	--}}}
 
 	--{{{ hit counters
-	process(DCLK)
+	process(hit)
 	begin
-		if ( HRESETn = '0' ) then
-			hit_counter  <= (others => '0');
-			miss_counter <= (others => '0');
-		elsif ( read_current_state=cmp_dlv or write_current_state=cmp_sto ) then
-			if ( hit = '1' ) then
-				hit_counter <= hit_counter + "1";
-			else
-				miss_counter <= miss_counter + "1";
-			end if;
+		-- add to hitcounter
+		if ( hit = '1') then
+			hit_counter <= hit_counter + "1";
+		else
+			miss_counter <= miss_counter + "1";
 		end if;
 	end process;
 	--}}}

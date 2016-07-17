@@ -29,7 +29,7 @@ end DATA_SRAM;
 
 architecture syn of DATA_SRAM is
 	type ram_type is array (1024 downto 0) of std_logic_vector (31 downto 0); -- Let's see if the synthesis can create a ram consisting of two BRAMs.
-	signal RAM : ram_type;
+	shared variable RAM : ram_type;
 begin
 	process (clk)
 	begin
@@ -39,10 +39,10 @@ begin
 					-- RAM(conv_integer(addr_A)) <= di_A;
 					for i in 0 to 3 loop
 						if wr_mask_A(i) = '1' then
-							RAM(to_integer(unsigned(addr_A)))((i+1)*8 downto (i*8)) <= di_A((i+1)*8 downto (i*8));
+							RAM(to_integer(unsigned(addr_A)))(((i+1)*8)-1 downto (i*8)) := di_A(((i+1)*8)-1 downto (i*8));
 						end if;
 					end loop;
-					RAM(to_integer(unsigned(addr_A))) <= di_A;
+					--RAM(to_integer(unsigned(addr_A))) := di_A;
 					do_A <= di_A;
 				else
 					--do_A <= RAM( conv_integer(addr_A));
@@ -60,10 +60,10 @@ begin
 					-- RAM(conv_integer(addr_B)) <= di_B;
 					for i in 0 to 3 loop
 						if wr_mask_B(i) = '1' then
-							RAM(to_integer(unsigned(addr_B)))((i+1)*8 downto (i*8)) <= di_B((i+1)*8 downto (i*8));
+							RAM(to_integer(unsigned(addr_B)))(((i+1)*8)-1 downto (i*8)) := di_B(((i+1)*8)-1 downto (i*8));
 						end if;
 					end loop;
-					RAM(to_integer(unsigned(addr_B))) <= di_B;
+					--RAM(to_integer(unsigned(addr_B))) <= di_B;
 					do_B <= di_B;
 				else
 					--do_B <= RAM( conv_integer(addr_B));
