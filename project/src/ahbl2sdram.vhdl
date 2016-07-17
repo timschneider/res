@@ -3,10 +3,6 @@ use ieee.std_logic_1164.all;
 use work.read_fsm_pkg.all;
 use work.write_fsm_pkg.all;
 use ieee.numeric_std.all;
---use ieee.std_logic_unsigned.all;
-
-
-
 
 
 entity AHBL2SDRAM is
@@ -191,8 +187,8 @@ architecture cache of AHBL2SDRAM is
 
 		-- The input variables to the state machine
 				 REQUEST   : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
-				 DRAM_BUSY : in  std_logic; -- pX_cmd_full || pX_rd_empty
 				 HIT       : in  std_logic; -- The cache hit or miss information
+				 DRAM_BUSY : in  std_logic; -- pX_cmd_full || pX_rd_empty
 				 HCLK      : in  std_logic; -- HCLK
 
 		-- The state register
@@ -311,7 +307,7 @@ begin
 		);
 
 	w_fsm:  WRITE_FSM port map (dclk => DCLK, res_n => HRESETn,
-			REQUEST => write_request, DRAM_BUSY => write_dram_busy, HIT => HIT, HCLK => HCLK, -- The input variables to the state machine
+			request => write_request, hit => hit, dram_busy => write_dram_busy, hclk => HCLK, -- The input variables to the state machine
 			state   => write_current_state                                                    -- The state register
 			);
 

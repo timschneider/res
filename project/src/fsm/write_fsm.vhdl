@@ -2,7 +2,6 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.write_fsm_pkg.all;
---use ieee.std_logic_unsigned.all;
 
 entity WRITE_FSM is
 	port (
@@ -11,8 +10,8 @@ entity WRITE_FSM is
 
 		-- The input variables to the state machine
 		REQUEST   : in  std_logic; -- HWRITE && HREADY && ( HSEL or HSEL & HPROT for non-unified cache )
-		DRAM_BUSY : in  std_logic; -- pX_cmd_full || pX_rd_empty
 		HIT       : in  std_logic; -- The cache hit or miss information
+		DRAM_BUSY : in  std_logic; -- pX_cmd_full || pX_rd_empty
 		HCLK      : in  std_logic; -- HCLK
 
 		-- The state register
@@ -21,10 +20,7 @@ entity WRITE_FSM is
 end WRITE_FSM;
 
 architecture syn of WRITE_FSM is
-
-
 	signal current_state, next_state : write_fsm_state_type := idl_rdt;
-
 begin
 	--{{{
 	calculate_next_state: process(current_state, REQUEST, HIT, DRAM_BUSY, HCLK)
